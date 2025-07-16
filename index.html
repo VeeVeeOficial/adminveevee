@@ -705,13 +705,26 @@
 
     <script>
         // Configuration
-        const API_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL'; // ใส่ URL ของ Google Apps Script ที่ Deploy แล้ว
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzLIVzXA0xCszfWNe2J0OyOJWsfs8f-qUS0nBgke-Bz0RRi8hE6MO3YkJ8KfqSuLOHy/exec';
+        
+        // SHA256 hash function
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            return hashHex;
+        }
         
         function adminApp() {
             return {
                 // Auth State
                 isLoggedIn: false,
                 loginForm: { username: '', password: '' },
+                
+                // Admin credentials (เปลี่ยนตรงนี้)
+                adminUsername: 'admin',
+                adminPasswordHash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918', // default: admin
                 
                 // Page State
                 currentPage: 'dashboard',
@@ -787,9 +800,12 @@
                 },
                 
                 // Auth Methods
-                login() {
-                    // Simple hardcoded login - เปลี่ยนรหัสผ่านตรงนี้
-                    if (this.loginForm.username === 'admin' && this.loginForm.password === 'veevee2025') {
+                async login() {
+                    // Hash the password with SHA256
+                    const passwordHash = await sha256(this.loginForm.password);
+                    
+                    // Check credentials
+                    if (this.loginForm.username === this.adminUsername && passwordHash === this.adminPasswordHash) {
                         this.isLoggedIn = true;
                         localStorage.setItem('veevee_admin_token', 'admin_token_' + Date.now());
                         this.loadDashboard();
