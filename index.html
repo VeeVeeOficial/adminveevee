@@ -3,36 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VeeVee Admin Dashboard</title>
+    <title>VeeVee Admin Panel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#ff6b35',
-                        secondary: '#2c5530',
-                        accent: '#f4e4bc',
-                        green: '#7fb069'
-                    },
-                    fontFamily: {
-                        'thai': ['Kanit', 'sans-serif']
-                    }
-                }
-            }
-        }
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, addDoc, query, orderBy, limit, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        // ⚠️ Firebase Config - ควรซ่อนใน production
+        const firebaseConfig = {
+            apiKey: "AIzaSyAlUUr6ATEfDQohr5Zvdk5_C7xKJFBLem0",
+            authDomain: "veeveeweb.firebaseapp.com",
+            projectId: "veeveeweb",
+            storageBucket: "veeveeweb.firebasestorage.app",
+            messagingSenderId: "105473827182",
+            appId: "1:105473827182:web:d91d4b3bb2e91d8f456a3b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        window.firebaseDb = db;
+        window.firebaseAuth = auth;
+        window.firebaseCollection = collection;
+        window.firebaseGetDocs = getDocs;
+        window.firebaseAddDoc = addDoc;
+        window.firebaseDoc = doc;
+        window.firebaseUpdateDoc = updateDoc;
+        window.firebaseDeleteDoc = deleteDoc;
+        window.firebaseQuery = query;
+        window.firebaseOrderBy = orderBy;
+        window.firebaseLimit = limit;
+        window.firebaseWhere = where;
+        window.firebaseServerTimestamp = serverTimestamp;
+        window.firebaseSignInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.firebaseSignOut = signOut;
+        window.firebaseOnAuthStateChanged = onAuthStateChanged;
+
+        console.log('✅ Firebase Admin initialized');
     </script>
+
     <style>
-        body { font-family: 'Kanit', sans-serif; }
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #ff6b35;
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.6s ease-out;
+        }
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .loading {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
             animation: spin 1s linear infinite;
         }
         @keyframes spin {
@@ -41,356 +72,683 @@
         }
     </style>
 </head>
-<body class="bg-gray-100" x-data="adminApp()">
+
+<body class="bg-gray-50" x-data="adminApp">
     
     <!-- Login Screen -->
-    <div x-show="!isLoggedIn" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-secondary">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
-            <div class="text-center mb-8">
-                <img src="https://i.postimg.cc/h4YCb73G/AR-13.png" alt="VeeVee Logo" class="h-16 mx-auto mb-4">
-                <h1 class="text-3xl font-bold text-secondary">VeeVee Admin</h1>
-                <p class="text-gray-600 mt-2">ระบบจัดการหลังบ้าน</p>
+    <div x-show="!isAuthenticated" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-400 to-blue-500">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-96">
+            <div class="text-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">VeeVee Admin</h1>
+                <p class="text-gray-600">ระบบจัดการหลังบ้าน</p>
             </div>
             
-            <form @submit.prevent="login()">
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-gray-700 mb-2">ชื่อผู้ใช้</label>
-                        <input type="text" x-model="loginForm.username" required 
-                               class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 mb-2">รหัสผ่าน</label>
-                        <input type="password" x-model="loginForm.password" required 
-                               class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
-                    </div>
+            <form @submit.prevent="login" class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">อีเมล</label>
+                    <input type="email" x-model="loginForm.email" required
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
                 </div>
                 
-                <button type="submit" 
-                        class="w-full bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors mt-6">
-                    <i class="fas fa-sign-in-alt mr-2"></i>
-                    เข้าสู่ระบบ
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">รหัสผ่าน</label>
+                    <input type="password" x-model="loginForm.password" required
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                </div>
+                
+                <button type="submit" :disabled="loginLoading"
+                        class="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center justify-center">
+                    <span x-show="!loginLoading">เข้าสู่ระบบ</span>
+                    <span x-show="loginLoading" class="flex items-center">
+                        <div class="loading mr-2"></div>
+                        กำลังเข้าสู่ระบบ...
+                    </span>
                 </button>
             </form>
+            
+            <div x-show="loginError" x-text="loginError" class="mt-4 p-3 bg-red-100 text-red-700 rounded-lg"></div>
         </div>
     </div>
 
     <!-- Admin Dashboard -->
-    <div x-show="isLoggedIn" class="min-h-screen">
-        <!-- Sidebar -->
-        <div class="fixed w-64 h-full bg-secondary text-white">
-            <div class="p-6">
-                <div class="flex items-center space-x-3">
-                    <img src="https://i.postimg.cc/h4YCb73G/AR-13.png" alt="VeeVee Logo" class="h-10">
-                    <span class="text-2xl font-bold">VeeVee</span>
+    <div x-show="isAuthenticated" class="min-h-screen bg-gray-50">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center">
+                        <h1 class="text-2xl font-bold text-gray-900">VeeVee Admin</h1>
+                        <span class="ml-4 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                            ออนไลน์
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <button @click="openGoogleSheets()" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition-colors text-sm">
+                            📊 Google Sheets
+                        </button>
+                        <span class="text-gray-700" x-text="'สวัสดี, ' + userEmail"></span>
+                        <button @click="logout" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                            <i class="fas fa-sign-out-alt mr-2"></i>ออกจากระบบ
+                        </button>
+                    </div>
                 </div>
-                <p class="text-green mt-2">Admin Dashboard</p>
             </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="bg-white border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex space-x-8 overflow-x-auto">
+                    <button @click="currentTab = 'pos'" 
+                            :class="currentTab === 'pos' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
+                        <i class="fas fa-cash-register mr-2"></i>ขายหน้าร้าน (POS)
+                        <span class="ml-2 bg-green-100 text-green-800 text-xs rounded-full px-2 py-1">เปิด</span>
+                    </button>
+                    
+                    <button @click="currentTab = 'products'" 
+                            :class="currentTab === 'products' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
+                        <i class="fas fa-box mr-2"></i>จัดการสินค้า
+                        <span class="ml-2 bg-blue-100 text-blue-800 text-xs rounded-full px-2 py-1" x-text="products.length"></span>
+                    </button>
+                    
+                    <button @click="currentTab = 'orders'" 
+                            :class="currentTab === 'orders' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
+                        <i class="fas fa-shopping-cart mr-2"></i>คำสั่งซื้อออนไลน์
+                        <span class="ml-2 bg-blue-100 text-blue-800 text-xs rounded-full px-2 py-1" x-text="orders.length"></span>
+                    </button>
+                    
+                    <button @click="currentTab = 'contacts'" 
+                            :class="currentTab === 'contacts' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
+                        <i class="fas fa-envelope mr-2"></i>ข้อความติดต่อ
+                        <span class="ml-2 bg-blue-100 text-blue-800 text-xs rounded-full px-2 py-1" x-text="contacts.length"></span>
+                    </button>
+                    
+                    <button @click="currentTab = 'slips'" 
+                            :class="currentTab === 'slips' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
+                        <i class="fas fa-receipt mr-2"></i>สลิปการโอน
+                        <span class="ml-2 bg-blue-100 text-blue-800 text-xs rounded-full px-2 py-1" x-text="paymentSlips.length"></span>
+                    </button>
+                    
+                    <button @click="currentTab = 'reports'" 
+                            :class="currentTab === 'reports' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
+                        <i class="fas fa-chart-line mr-2"></i>รายงานการขาย
+                    </button>
+                    
+                    <button @click="currentTab = 'inventory'" 
+                            :class="currentTab === 'inventory' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
+                        <i class="fas fa-warehouse mr-2"></i>คลังสินค้า
+                        <span class="ml-2 bg-yellow-100 text-yellow-800 text-xs rounded-full px-2 py-1" x-text="getTotalStock()"></span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Content -->
+        <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
             
-            <nav class="mt-8">
-                <a @click="currentPage = 'dashboard'" 
-                   :class="currentPage === 'dashboard' ? 'bg-primary' : 'hover:bg-secondary/70'"
-                   class="block px-6 py-3 transition-colors cursor-pointer">
-                    <i class="fas fa-chart-line mr-3"></i>
-                    ภาพรวม
-                </a>
-                
-                <a @click="currentPage = 'orders'" 
-                   :class="currentPage === 'orders' ? 'bg-primary' : 'hover:bg-secondary/70'"
-                   class="block px-6 py-3 transition-colors cursor-pointer">
-                    <i class="fas fa-shopping-cart mr-3"></i>
-                    คำสั่งซื้อ
-                    <span x-show="stats.pending_orders > 0" 
-                          class="bg-red-500 text-white text-xs px-2 py-1 rounded-full ml-2"
-                          x-text="stats.pending_orders">
-                    </span>
-                </a>
-                
-                <a @click="currentPage = 'products'" 
-                   :class="currentPage === 'products' ? 'bg-primary' : 'hover:bg-secondary/70'"
-                   class="block px-6 py-3 transition-colors cursor-pointer">
-                    <i class="fas fa-box mr-3"></i>
-                    สินค้า
-                </a>
-                
-                <a @click="currentPage = 'customers'" 
-                   :class="currentPage === 'customers' ? 'bg-primary' : 'hover:bg-secondary/70'"
-                   class="block px-6 py-3 transition-colors cursor-pointer">
-                    <i class="fas fa-users mr-3"></i>
-                    ลูกค้า
-                </a>
-                
-                <a @click="currentPage = 'pos'" 
-                   :class="currentPage === 'pos' ? 'bg-primary' : 'hover:bg-secondary/70'"
-                   class="block px-6 py-3 transition-colors cursor-pointer">
-                    <i class="fas fa-cash-register mr-3"></i>
-                    ขายหน้าร้าน (POS)
-                </a>
-                
-                <a @click="logout()" 
-                   class="block px-6 py-3 hover:bg-red-600 transition-colors cursor-pointer mt-8">
-                    <i class="fas fa-sign-out-alt mr-3"></i>
-                    ออกจากระบบ
-                </a>
-            </nav>
-        </div>
-
-        <!-- Main Content -->
-        <div class="ml-64 p-8">
-            <!-- Dashboard -->
-            <div x-show="currentPage === 'dashboard'">
-                <h1 class="text-3xl font-bold text-secondary mb-8">ภาพรวมระบบ</h1>
-                
-                <!-- Stats Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="bg-white rounded-xl p-6 shadow-lg">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-600">คำสั่งซื้อวันนี้</p>
-                                <p class="text-3xl font-bold text-primary" x-text="stats.today_orders || 0"></p>
+            <!-- POS System Tab -->
+            <div x-show="currentTab === 'pos' && !loading">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Product Selection -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white rounded-lg shadow-sm p-6">
+                            <h2 class="text-xl font-bold text-gray-900 mb-6">เลือกสินค้า</h2>
+                            
+                            <!-- Search Bar -->
+                            <div class="mb-4">
+                                <input type="text" x-model="posSearch" @input="filterProducts" 
+                                       placeholder="ค้นหาสินค้า..." 
+                                       class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
                             </div>
-                            <i class="fas fa-shopping-cart text-4xl text-primary/20"></i>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white rounded-xl p-6 shadow-lg">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-600">ยอดขายวันนี้</p>
-                                <p class="text-3xl font-bold text-green">฿<span x-text="formatNumber(stats.today_revenue || 0)"></span></p>
-                            </div>
-                            <i class="fas fa-dollar-sign text-4xl text-green/20"></i>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white rounded-xl p-6 shadow-lg">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-600">ยอดขายเดือนนี้</p>
-                                <p class="text-3xl font-bold text-secondary">฿<span x-text="formatNumber(stats.monthly_revenue || 0)"></span></p>
-                            </div>
-                            <i class="fas fa-chart-line text-4xl text-secondary/20"></i>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white rounded-xl p-6 shadow-lg">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-600">รอดำเนินการ</p>
-                                <p class="text-3xl font-bold text-red-500" x-text="stats.pending_orders || 0"></p>
-                            </div>
-                            <i class="fas fa-clock text-4xl text-red-500/20"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Quick Actions -->
-                <div class="bg-white rounded-xl p-6 shadow-lg">
-                    <h2 class="text-xl font-bold text-secondary mb-4">การดำเนินการด่วน</h2>
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <button @click="currentPage = 'orders'" 
-                                class="bg-primary text-white px-4 py-3 rounded-xl hover:bg-primary/90 transition-colors">
-                            <i class="fas fa-list mr-2"></i>
-                            จัดการคำสั่งซื้อ
-                        </button>
-                        
-                        <button @click="currentPage = 'products'; showAddProduct = true" 
-                                class="bg-green text-white px-4 py-3 rounded-xl hover:bg-green/90 transition-colors">
-                            <i class="fas fa-plus mr-2"></i>
-                            เพิ่มสินค้า
-                        </button>
-                        
-                        <button @click="currentPage = 'pos'" 
-                                class="bg-secondary text-white px-4 py-3 rounded-xl hover:bg-secondary/90 transition-colors">
-                            <i class="fas fa-cash-register mr-2"></i>
-                            ขายหน้าร้าน
-                        </button>
-                        
-                        <button @click="exportData()" 
-                                class="bg-gray-600 text-white px-4 py-3 rounded-xl hover:bg-gray-700 transition-colors">
-                            <i class="fas fa-download mr-2"></i>
-                            ส่งออกข้อมูล
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Orders Page -->
-            <div x-show="currentPage === 'orders'">
-                <h1 class="text-3xl font-bold text-secondary mb-8">จัดการคำสั่งซื้อ</h1>
-                
-                <!-- Filters -->
-                <div class="bg-white rounded-xl p-6 shadow-lg mb-6">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <input type="text" x-model="orderSearch" placeholder="ค้นหาคำสั่งซื้อ..." 
-                               class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                        
-                        <select x-model="orderStatusFilter" 
-                                class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                            <option value="">ทุกสถานะ</option>
-                            <option value="pending">รอดำเนินการ</option>
-                            <option value="processing">กำลังดำเนินการ</option>
-                            <option value="shipped">จัดส่งแล้ว</option>
-                            <option value="delivered">ส่งสำเร็จ</option>
-                            <option value="cancelled">ยกเลิก</option>
-                        </select>
-                        
-                        <input type="date" x-model="orderDateFilter" 
-                               class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                        
-                        <button @click="loadOrders()" 
-                                class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
-                            <i class="fas fa-search mr-2"></i>
-                            ค้นหา
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Orders Table -->
-                <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-                    <table class="w-full">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    เลขที่คำสั่งซื้อ
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    ลูกค้า
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    ยอดรวม
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    สถานะ
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    การชำระเงิน
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    วันที่
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    การดำเนินการ
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <template x-for="order in filteredOrders" :key="order.id">
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="font-semibold text-primary" x-text="order.order_number"></span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div>
-                                            <div class="text-sm font-medium text-gray-900" x-text="getCustomerName(order.customer_id)"></div>
-                                            <div class="text-sm text-gray-500" x-text="getCustomerPhone(order.customer_id)"></div>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="font-semibold">฿<span x-text="order.total"></span></span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <select @change="updateOrderStatus(order.id, $event.target.value)" 
-                                                x-model="order.status"
-                                                class="text-sm px-3 py-1 rounded-full border"
-                                                :class="{
-                                                    'bg-yellow-100 text-yellow-800 border-yellow-200': order.status === 'pending',
-                                                    'bg-blue-100 text-blue-800 border-blue-200': order.status === 'processing',
-                                                    'bg-purple-100 text-purple-800 border-purple-200': order.status === 'shipped',
-                                                    'bg-green-100 text-green-800 border-green-200': order.status === 'delivered',
-                                                    'bg-red-100 text-red-800 border-red-200': order.status === 'cancelled'
-                                                }">
-                                            <option value="pending">รอดำเนินการ</option>
-                                            <option value="processing">กำลังดำเนินการ</option>
-                                            <option value="shipped">จัดส่งแล้ว</option>
-                                            <option value="delivered">ส่งสำเร็จ</option>
-                                            <option value="cancelled">ยกเลิก</option>
-                                        </select>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm">
-                                            <div x-text="getPaymentMethodText(order.payment_method)"></div>
-                                            <div :class="order.payment_status === 'paid' ? 'text-green-600' : 'text-yellow-600'"
-                                                 x-text="order.payment_status === 'paid' ? 'ชำระแล้ว' : 'รอชำระเงิน'">
+                            
+                            <!-- Product Grid -->
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <template x-for="product in filteredProducts" :key="product.id">
+                                    <div @click="addToCart(product)" 
+                                         class="p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-green-500 hover:bg-green-50 transition-all">
+                                        <div class="text-center">
+                                            <div class="w-16 h-16 bg-green-100 rounded-full mx-auto mb-3 flex items-center justify-center">
+                                                <i class="fas fa-box text-green-600 text-xl"></i>
                                             </div>
+                                            <h3 class="font-semibold text-gray-900" x-text="product.name"></h3>
+                                            <p class="text-lg font-bold text-green-600 mt-1" x-text="'฿' + product.price"></p>
+                                            <p class="text-sm text-gray-500" x-text="'คงเหลือ: ' + product.stock + ' ' + product.unit"></p>
                                         </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" 
-                                        x-text="formatDate(order.created_at)">
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button @click="viewOrderDetails(order)" 
-                                                class="text-primary hover:text-primary/80 mr-3">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        <button @click="editOrder(order)" 
-                                                class="text-blue-600 hover:text-blue-800 mr-3">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button @click="printOrder(order)" 
-                                                class="text-gray-600 hover:text-gray-800">
-                                            <i class="fas fa-print"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Cart & Checkout -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white rounded-lg shadow-sm p-6 sticky top-6">
+                            <h2 class="text-xl font-bold text-gray-900 mb-6">รายการสั่งซื้อ</h2>
+                            
+                            <!-- Cart Items -->
+                            <div class="space-y-3 mb-6 max-h-64 overflow-y-auto">
+                                <template x-for="(item, index) in posCart" :key="index">
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div class="flex-1">
+                                            <h4 class="font-medium" x-text="item.name"></h4>
+                                            <p class="text-sm text-gray-600" x-text="'฿' + item.price + ' x ' + item.quantity"></p>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <button @click="updateCartQuantity(index, -1)" class="w-6 h-6 bg-red-500 text-white rounded-full text-xs">-</button>
+                                            <span class="w-8 text-center" x-text="item.quantity"></span>
+                                            <button @click="updateCartQuantity(index, 1)" class="w-6 h-6 bg-green-500 text-white rounded-full text-xs">+</button>
+                                        </div>
+                                    </div>
+                                </template>
+                                
+                                <div x-show="posCart.length === 0" class="text-center text-gray-500 py-8">
+                                    <i class="fas fa-shopping-cart text-4xl mb-2"></i>
+                                    <p>ยังไม่มีสินค้าในตะกร้า</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Total -->
+                            <div class="border-t pt-4 mb-6">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-lg font-semibold">รวมทั้งสิ้น:</span>
+                                    <span class="text-2xl font-bold text-green-600" x-text="'฿' + posTotal.toLocaleString()"></span>
+                                </div>
+                            </div>
+                            
+                            <!-- Payment Method -->
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">วิธีการชำระเงิน</label>
+                                <select x-model="posPaymentMethod" class="w-full p-2 border border-gray-300 rounded-lg">
+                                    <option value="cash">เงินสด</option>
+                                    <option value="transfer">โอนเงิน</option>
+                                    <option value="qr">QR PromptPay</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Customer Info -->
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อลูกค้า (ไม่ใส่ก็ได้)</label>
+                                <input type="text" x-model="posCustomerName" 
+                                       class="w-full p-2 border border-gray-300 rounded-lg" 
+                                       placeholder="ชื่อลูกค้า">
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="space-y-3">
+                                <button @click="processPOSSale()" :disabled="posCart.length === 0 || posProcessing"
+                                        class="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <span x-show="!posProcessing">
+                                        <i class="fas fa-cash-register mr-2"></i>ชำระเงิน
+                                    </span>
+                                    <span x-show="posProcessing" class="flex items-center justify-center">
+                                        <div class="loading mr-2"></div>กำลังดำเนินการ...
+                                    </span>
+                                </button>
+                                
+                                <button @click="clearPOSCart()" :disabled="posCart.length === 0"
+                                        class="w-full bg-gray-500 text-white py-2 rounded-lg font-semibold hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <i class="fas fa-trash mr-2"></i>ล้างรายการ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Today's Sales Summary -->
+                <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-green-100 rounded-lg">
+                                <i class="fas fa-cash-register text-green-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">ยอดขายวันนี้</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="'฿' + todaySales.toLocaleString()"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-blue-100 rounded-lg">
+                                <i class="fas fa-receipt text-blue-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">บิลวันนี้</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="todayOrders"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-yellow-100 rounded-lg">
+                                <i class="fas fa-chart-line text-yellow-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">ยอดขายเฉลี่ย</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="'฿' + (todayOrders > 0 ? (todaySales / todayOrders).toFixed(0) : 0)"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-purple-100 rounded-lg">
+                                <i class="fas fa-clock text-purple-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">บิลล่าสุด</p>
+                                <p class="text-lg font-bold text-gray-900" x-text="lastSaleTime"></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Products Page -->
-            <div x-show="currentPage === 'products'">
-                <div class="flex justify-between items-center mb-8">
-                    <h1 class="text-3xl font-bold text-secondary">จัดการสินค้า</h1>
-                    <button @click="showAddProduct = true" 
-                            class="bg-primary text-white px-6 py-3 rounded-xl hover:bg-primary/90 transition-colors">
-                        <i class="fas fa-plus mr-2"></i>
-                        เพิ่มสินค้าใหม่
+            <!-- Products Management Tab -->
+            <div x-show="currentTab === 'products' && !loading">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">จัดการสินค้า</h2>
+                    <div class="flex space-x-3">
+                        <button @click="showAddProductModal = true" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>เพิ่มสินค้า
+                        </button>
+                        <button @click="refreshProducts()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>รีเฟรช
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">รหัสสินค้า</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อสินค้า</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ราคา</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สต็อก</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">หมวดหมู่</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <template x-for="product in products" :key="product.id">
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="product.sku"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900" x-text="product.name"></div>
+                                            <div class="text-sm text-gray-500" x-text="product.description"></div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="'฿' + product.price?.toLocaleString()"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span :class="product.stock <= product.min_stock ? 'text-red-600 font-bold' : 'text-gray-900'" 
+                                                  x-text="product.stock + ' ' + product.unit"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="product.category"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span :class="product.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" 
+                                                  class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                                  x-text="product.active ? 'ใช้งาน' : 'หยุดใช้'"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                            <button @click="editProduct(product)" class="text-blue-600 hover:text-blue-900">แก้ไข</button>
+                                            <button @click="toggleProductStatus(product)" class="text-yellow-600 hover:text-yellow-900">
+                                                <span x-text="product.active ? 'หยุดใช้' : 'เปิดใช้'"></span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Tab -->
+            <div x-show="currentTab === 'inventory' && !loading">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">คลังสินค้า</h2>
+                    <div class="flex space-x-3">
+                        <button @click="showStockAdjustModal = true" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-edit mr-2"></i>ปรับสต็อก
+                        </button>
+                        <button @click="generateStockReport()" class="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors">
+                            <i class="fas fa-file-export mr-2"></i>ส่งออกรายงาน
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Stock Alerts -->
+                <div x-show="lowStockProducts.length > 0" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <h3 class="text-red-800 font-semibold mb-2">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>แจ้งเตือนสต็อกต่ำ
+                    </h3>
+                    <div class="text-red-700">
+                        <template x-for="product in lowStockProducts" :key="product.id">
+                            <p x-text="product.name + ' เหลือ ' + product.stock + ' ' + product.unit + ' (ต่ำกว่าขั้นต่ำ ' + product.min_stock + ' ' + product.unit + ')'"></p>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Inventory Overview -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-blue-100 rounded-lg">
+                                <i class="fas fa-boxes text-blue-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">สินค้าทั้งหมด</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="products.length"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-green-100 rounded-lg">
+                                <i class="fas fa-warehouse text-green-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">รวมสต็อก</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="getTotalStock()"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-yellow-100 rounded-lg">
+                                <i class="fas fa-exclamation-triangle text-yellow-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">สต็อกต่ำ</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="lowStockProducts.length"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-purple-100 rounded-lg">
+                                <i class="fas fa-dollar-sign text-purple-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">มูลค่าสต็อก</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="'฿' + getInventoryValue().toLocaleString()"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Stock List -->
+                <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900">รายการสต็อกสินค้า</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สินค้า</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สต็อกปัจจุบัน</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ขั้นต่ำ</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">มูลค่า</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <template x-for="product in products" :key="product.id">
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900" x-text="product.name"></div>
+                                            <div class="text-sm text-gray-500" x-text="product.sku"></div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span :class="product.stock <= product.min_stock ? 'text-red-600 font-bold' : 'text-gray-900'" 
+                                                  x-text="product.stock + ' ' + product.unit"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="product.min_stock + ' ' + product.unit"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="'฿' + (product.stock * product.price).toLocaleString()"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span x-show="product.stock > product.min_stock" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                ปกติ
+                                            </span>
+                                            <span x-show="product.stock <= product.min_stock && product.stock > 0" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                ต่ำ
+                                            </span>
+                                            <span x-show="product.stock === 0" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                หมด
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <button @click="adjustStock(product)" class="text-blue-600 hover:text-blue-900">ปรับสต็อก</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div x-show="currentTab === 'reports' && !loading">
+                <h2 class="text-xl font-bold text-gray-900 mb-6">รายงานการขาย</h2>
+                
+                <!-- Date Filter -->
+                <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                    <div class="flex flex-wrap items-end gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">วันที่เริ่มต้น</label>
+                            <input type="date" x-model="reportDateFrom" class="p-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">วันที่สิ้นสุด</label>
+                            <input type="date" x-model="reportDateTo" class="p-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <button @click="generateSalesReport()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-search mr-2"></i>ค้นหา
+                        </button>
+                        <button @click="exportReport()" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                            <i class="fas fa-download mr-2"></i>ส่งออก
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Sales Summary -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-green-100 rounded-lg">
+                                <i class="fas fa-dollar-sign text-green-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">ยอดขายรวม</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="'฿' + reportData.totalSales.toLocaleString()"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-blue-100 rounded-lg">
+                                <i class="fas fa-receipt text-blue-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">จำนวนบิล</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="reportData.totalOrders"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-yellow-100 rounded-lg">
+                                <i class="fas fa-chart-line text-yellow-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">ยอดเฉลี่ยต่อบิล</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="'฿' + reportData.averageOrderValue.toFixed(0)"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-purple-100 rounded-lg">
+                                <i class="fas fa-boxes text-purple-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">สินค้าขายได้</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="reportData.totalItems"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Top Products -->
+                <div class="bg-white shadow-sm rounded-lg p-6 mb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">สินค้าขายดี</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="text-left py-2">อันดับ</th>
+                                    <th class="text-left py-2">สินค้า</th>
+                                    <th class="text-left py-2">จำนวนขาย</th>
+                                    <th class="text-left py-2">ยอดขาย</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(item, index) in reportData.topProducts" :key="item.product_id">
+                                    <tr class="border-b">
+                                        <td class="py-2" x-text="index + 1"></td>
+                                        <td class="py-2" x-text="item.product_name"></td>
+                                        <td class="py-2" x-text="item.quantity + ' ' + item.unit"></td>
+                                        <td class="py-2" x-text="'฿' + item.total_sales.toLocaleString()"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders Tab -->
+            <div x-show="currentTab === 'orders' && !loading">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">คำสั่งซื้อ</h2>
+                    <button @click="refreshOrders()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>รีเฟรช
                     </button>
                 </div>
                 
-                <!-- Products Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <template x-for="product in products" :key="product.id">
-                        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-                            <img :src="product.image_url" :alt="product.name" class="w-full h-48 object-cover">
-                            
-                            <div class="p-6">
-                                <h3 class="font-semibold text-lg text-secondary mb-2" x-text="product.name"></h3>
-                                <p class="text-gray-600 text-sm mb-4" x-text="product.description"></p>
-                                
-                                <div class="space-y-2 mb-4">
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-600">ราคาขาย:</span>
-                                        <span class="font-semibold">฿<span x-text="product.price"></span></span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-600">ต้นทุน:</span>
-                                        <span>฿<span x-text="product.cost"></span></span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-600">คงเหลือ:</span>
-                                        <span :class="product.stock <= 10 ? 'text-red-600 font-semibold' : ''"
-                                              x-text="product.stock + ' ชิ้น'">
-                                        </span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-600">กำไร:</span>
-                                        <span class="text-green font-semibold">฿<span x-text="product.price - product.cost"></span></span>
-                                    </div>
+                <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เลขที่คำสั่งซื้อ</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ลูกค้า</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จำนวน</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ยอดรวม</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <template x-for="order in orders" :key="order.id">
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" x-text="order.customer_id || 'N/A'"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900" x-text="order.name"></div>
+                                            <div class="text-sm text-gray-500" x-text="order.email"></div>
+                                            <div class="text-sm text-gray-500" x-text="order.phone"></div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="order.quantity + ' ซอง'"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="'฿' + order.total_amount?.toLocaleString()"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="formatDate(order.created_at || order.timestamp)"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                รอดำเนินการ
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contacts Tab -->
+            <div x-show="currentTab === 'contacts' && !loading">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">ข้อความติดต่อ</h2>
+                    <button @click="refreshContacts()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>รีเฟรช
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    <template x-for="contact in contacts" :key="contact.id">
+                        <div class="bg-white shadow-sm rounded-lg p-6">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-900" x-text="contact.name"></h3>
+                                    <p class="text-gray-600" x-text="contact.email + ' • ' + contact.phone"></p>
+                                    <p class="text-sm text-gray-500" x-text="formatDate(contact.timestamp)"></p>
                                 </div>
-                                
-                                <div class="flex gap-2">
-                                    <button @click="editProduct(product)" 
-                                            class="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                                        <i class="fas fa-edit mr-2"></i>
-                                        แก้ไข
+                                <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">ใหม่</span>
+                            </div>
+                            <div class="text-gray-800" x-text="contact.message"></div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Payment Slips Tab -->
+            <div x-show="currentTab === 'slips' && !loading">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">สลิปการโอนเงิน</h2>
+                    <button @click="refreshPaymentSlips()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>รีเฟรช
+                    </button>
+                </div>
+                
+                <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <template x-for="slip in paymentSlips" :key="slip.id">
+                        <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+                            <div x-show="slip.file_data" class="h-48 bg-gray-100 flex items-center justify-center">
+                                <img :src="'data:' + slip.file_type + ';base64,' + slip.file_data" 
+                                     class="max-h-full max-w-full object-contain" alt="Payment Slip">
+                            </div>
+                            <div class="p-4">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h3 class="font-semibold text-gray-900" x-text="slip.order_number"></h3>
+                                    <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">รอตรวจสอบ</span>
+                                </div>
+                                <p class="text-lg font-bold text-green-600" x-text="'฿' + slip.amount?.toLocaleString()"></p>
+                                <p class="text-sm text-gray-500" x-text="formatDate(slip.uploaded_at || slip.timestamp)"></p>
+                                <div class="mt-3 flex space-x-2">
+                                    <button class="flex-1 bg-green-500 text-white py-2 px-3 rounded text-sm hover:bg-green-600">
+                                        อนุมัติ
                                     </button>
-                                    <button @click="updateStock(product)" 
-                                            class="flex-1 bg-green text-white py-2 rounded-lg hover:bg-green/90 transition-colors">
-                                        <i class="fas fa-box mr-2"></i>
-                                        อัพเดทสต็อก
+                                    <button class="flex-1 bg-red-500 text-white py-2 px-3 rounded text-sm hover:bg-red-600">
+                                        ปฏิเสธ
                                     </button>
                                 </div>
                             </div>
@@ -399,742 +757,680 @@
                 </div>
             </div>
 
-            <!-- Customers Page -->
-            <div x-show="currentPage === 'customers'">
-                <h1 class="text-3xl font-bold text-secondary mb-8">จัดการลูกค้า</h1>
+            <!-- Stats Tab (Legacy - now integrated into Reports) -->
+            <div x-show="currentTab === 'stats' && !loading">
+                <h2 class="text-xl font-bold text-gray-900 mb-6">สถิติรวม</h2>
                 
-                <!-- Customer Table -->
-                <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-                    <table class="w-full">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    ชื่อ
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    อีเมล
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    เบอร์โทร
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    วันที่สมัคร
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    สถานะ
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    การดำเนินการ
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <template x-for="customer in customers" :key="customer.id">
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="font-medium" x-text="customer.name"></span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span x-text="customer.email"></span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span x-text="customer.phone"></span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <span x-text="formatDate(customer.created_at)"></span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                                              :class="customer.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
-                                              x-text="customer.status === 'active' ? 'ใช้งาน' : 'ระงับ'">
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button @click="viewCustomer(customer)" 
-                                                class="text-primary hover:text-primary/80 mr-3">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        <button @click="editCustomer(customer)" 
-                                                class="text-blue-600 hover:text-blue-800">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- POS Page -->
-            <div x-show="currentPage === 'pos'">
-                <h1 class="text-3xl font-bold text-secondary mb-8">ขายหน้าร้าน (POS)</h1>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <!-- Product Selection -->
-                    <div class="bg-white rounded-xl p-6 shadow-lg">
-                        <h2 class="text-xl font-bold mb-4">เลือกสินค้า</h2>
-                        
-                        <div class="grid grid-cols-2 gap-4">
-                            <template x-for="product in products" :key="product.id">
-                                <button @click="addToPOS(product)" 
-                                        class="border-2 border-gray-200 rounded-xl p-4 hover:border-primary transition-colors">
-                                    <img :src="product.image_url" :alt="product.name" class="w-full h-24 object-cover rounded mb-2">
-                                    <p class="font-semibold text-sm" x-text="product.name"></p>
-                                    <p class="text-primary">฿<span x-text="product.price"></span></p>
-                                </button>
-                            </template>
-                        </div>
-                    </div>
-                    
-                    <!-- Cart -->
-                    <div class="bg-white rounded-xl p-6 shadow-lg">
-                        <h2 class="text-xl font-bold mb-4">รายการขาย</h2>
-                        
-                        <div class="space-y-2 mb-4 max-h-96 overflow-y-auto">
-                            <template x-for="(item, index) in posCart" :key="index">
-                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                    <div class="flex-1">
-                                        <p class="font-semibold" x-text="item.name"></p>
-                                        <p class="text-sm text-gray-600">
-                                            ฿<span x-text="item.price"></span> x <span x-text="item.quantity"></span>
-                                        </p>
-                                    </div>
-                                    <div class="flex items-center space-x-2">
-                                        <button @click="decreasePOSQuantity(index)" 
-                                                class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300">
-                                            <i class="fas fa-minus text-sm"></i>
-                                        </button>
-                                        <button @click="increasePOSQuantity(index)" 
-                                                class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300">
-                                            <i class="fas fa-plus text-sm"></i>
-                                        </button>
-                                        <button @click="removeFromPOS(index)" 
-                                                class="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600">
-                                            <i class="fas fa-trash text-sm"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                        
-                        <div class="border-t pt-4">
-                            <div class="flex justify-between text-2xl font-bold">
-                                <span>ยอดรวม:</span>
-                                <span class="text-primary">฿<span x-text="posTotal"></span></span>
+                <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-blue-100 rounded-lg">
+                                <i class="fas fa-shopping-cart text-blue-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">คำสั่งซื้อออนไลน์</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="orders.length"></p>
                             </div>
                         </div>
-                        
-                        <div class="mt-4 space-y-2">
-                            <input type="text" x-model="posCustomerName" placeholder="ชื่อลูกค้า (ไม่บังคับ)" 
-                                   class="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                            
-                            <select x-model="posPaymentMethod" 
-                                    class="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                                <option value="cash">เงินสด</option>
-                                <option value="transfer">โอนเงิน</option>
-                                <option value="credit">บัตรเครดิต</option>
-                            </select>
-                            
-                            <button @click="processPOSSale()" 
-                                    :disabled="posCart.length === 0"
-                                    class="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:bg-gray-300">
-                                <i class="fas fa-cash-register mr-2"></i>
-                                ชำระเงิน
-                            </button>
-                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Order Details Modal -->
-    <div x-show="showOrderDetails" 
-         x-transition 
-         class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-auto p-8" @click.stop>
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-bold text-secondary">รายละเอียดคำสั่งซื้อ</h3>
-                <button @click="showOrderDetails = false" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times text-2xl"></i>
-                </button>
-            </div>
-            
-            <div x-show="selectedOrder" class="space-y-6">
-                <!-- Order Info -->
-                <div class="grid grid-cols-2 gap-6">
-                    <div class="bg-gray-50 p-4 rounded-xl">
-                        <h4 class="font-semibold mb-2">ข้อมูลคำสั่งซื้อ</h4>
-                        <div class="space-y-1 text-sm">
-                            <p><span class="font-medium">เลขที่:</span> <span x-text="selectedOrder?.order_number"></span></p>
-                            <p><span class="font-medium">วันที่:</span> <span x-text="formatDate(selectedOrder?.created_at)"></span></p>
-                            <p><span class="font-medium">สถานะ:</span> <span x-text="getOrderStatusText(selectedOrder?.status)"></span></p>
-                            <p><span class="font-medium">การชำระเงิน:</span> <span x-text="getPaymentMethodText(selectedOrder?.payment_method)"></span></p>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-green-100 rounded-lg">
+                                <i class="fas fa-cash-register text-green-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">ขายหน้าร้าน (POS)</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="posSales.length"></p>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="bg-gray-50 p-4 rounded-xl">
-                        <h4 class="font-semibold mb-2">ข้อมูลลูกค้า</h4>
-                        <div class="space-y-1 text-sm">
-                            <p><span class="font-medium">ชื่อ:</span> <span x-text="getCustomerName(selectedOrder?.customer_id)"></span></p>
-                            <p><span class="font-medium">เบอร์โทร:</span> <span x-text="getCustomerPhone(selectedOrder?.customer_id)"></span></p>
-                            <p><span class="font-medium">อีเมล:</span> <span x-text="getCustomerEmail(selectedOrder?.customer_id)"></span></p>
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-yellow-100 rounded-lg">
+                                <i class="fas fa-receipt text-yellow-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">สลิปรอตรวจ</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="paymentSlips.length"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-purple-100 rounded-lg">
+                                <i class="fas fa-envelope text-purple-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">ข้อความติดต่อ</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="contacts.length"></p>
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Shipping Address -->
-                <div class="bg-gray-50 p-4 rounded-xl">
-                    <h4 class="font-semibold mb-2">ที่อยู่จัดส่ง</h4>
-                    <div x-text="formatShippingAddress(selectedOrder?.shipping_address)" class="text-sm"></div>
+                <!-- Revenue Breakdown -->
+                <div class="grid gap-6 md:grid-cols-2 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">รายได้ออนไลน์</h3>
+                        <div class="text-3xl font-bold text-green-600" x-text="'฿' + totalRevenue.toLocaleString()"></div>
+                        <p class="text-gray-500">จากคำสั่งซื้อออนไลน์</p>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">รายได้หน้าร้าน</h3>
+                        <div class="text-3xl font-bold text-green-600" 
+                             x-text="'฿' + posSales.reduce((sum, sale) => sum + (sale.total || 0), 0).toLocaleString()"></div>
+                        <p class="text-gray-500">จากการขาย POS</p>
+                    </div>
                 </div>
                 
-                <!-- Tracking -->
-                <div class="bg-gray-50 p-4 rounded-xl">
-                    <h4 class="font-semibold mb-2">การจัดส่ง</h4>
-                    <div class="flex items-center space-x-4">
-                        <input type="text" x-model="trackingNumber" placeholder="เลขพัสดุ" 
-                               class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                        <button @click="updateTracking()" 
-                                class="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors">
-                            อัพเดทเลขพัสดุ
+                <!-- Quick Actions -->
+                <div class="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">ดำเนินการด่วน</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <button @click="currentTab = 'pos'" class="p-4 border border-green-500 text-green-600 rounded-lg hover:bg-green-50 transition-colors">
+                            <i class="fas fa-cash-register text-2xl mb-2"></i>
+                            <div class="font-semibold">เปิด POS</div>
+                        </button>
+                        
+                        <button @click="currentTab = 'products'" class="p-4 border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
+                            <i class="fas fa-box text-2xl mb-2"></i>
+                            <div class="font-semibold">จัดการสินค้า</div>
+                        </button>
+                        
+                        <button @click="currentTab = 'inventory'" class="p-4 border border-yellow-500 text-yellow-600 rounded-lg hover:bg-yellow-50 transition-colors">
+                            <i class="fas fa-warehouse text-2xl mb-2"></i>
+                            <div class="font-semibold">ดูคลังสินค้า</div>
+                        </button>
+                        
+                        <button @click="currentTab = 'reports'" class="p-4 border border-purple-500 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors">
+                            <i class="fas fa-chart-line text-2xl mb-2"></i>
+                            <div class="font-semibold">ออกรายงาน</div>
                         </button>
                     </div>
                 </div>
-                
-                <!-- Order Total -->
-                <div class="bg-gray-50 p-4 rounded-xl">
-                    <div class="space-y-2">
-                        <div class="flex justify-between">
-                            <span>ยอดรวมสินค้า</span>
-                            <span>฿<span x-text="selectedOrder?.subtotal"></span></span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>ค่าจัดส่ง</span>
-                            <span>฿<span x-text="selectedOrder?.shipping_fee"></span></span>
-                        </div>
-                        <div x-show="selectedOrder?.cod_fee > 0" class="flex justify-between">
-                            <span>ค่าธรรมเนียม COD</span>
-                            <span>฿<span x-text="selectedOrder?.cod_fee"></span></span>
-                        </div>
-                        <div class="flex justify-between text-lg font-bold text-primary pt-2 border-t">
-                            <span>ยอดรวมทั้งหมด</span>
-                            <span>฿<span x-text="selectedOrder?.total"></span></span>
-                        </div>
-                    </div>
-                </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Add/Edit Product Modal -->
-    <div x-show="showAddProduct" 
-         x-transition 
-         class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-2xl w-full p-8" @click.stop>
-            <h3 class="text-2xl font-bold text-secondary mb-6" x-text="editingProduct ? 'แก้ไขสินค้า' : 'เพิ่มสินค้าใหม่'"></h3>
-            
-            <form @submit.prevent="saveProduct()">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-gray-700 mb-2">ชื่อสินค้า</label>
-                        <input type="text" x-model="productForm.name" required 
-                               class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-700 mb-2">หมวดหมู่</label>
-                        <select x-model="productForm.category" required 
-                                class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
-                            <option value="single">ขายเดี่ยว</option>
-                            <option value="pack">ขายแพ็ค</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-700 mb-2">ราคาขาย</label>
-                        <input type="number" x-model="productForm.price" required min="0" 
-                               class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-700 mb-2">ต้นทุน</label>
-                        <input type="number" x-model="productForm.cost" required min="0" 
-                               class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-700 mb-2">จำนวนในสต็อก</label>
-                        <input type="number" x-model="productForm.stock" required min="0" 
-                               class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-gray-700 mb-2">URL รูปภาพ</label>
-                        <input type="url" x-model="productForm.image_url" 
-                               class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
-                    </div>
-                    
-                    <div class="col-span-2">
-                        <label class="block text-gray-700 mb-2">รายละเอียด</label>
-                        <textarea x-model="productForm.description" rows="3" 
-                                  class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
-                    </div>
-                </div>
-                
-                <div class="mt-6 flex gap-4">
-                    <button type="button" @click="showAddProduct = false; resetProductForm()" 
-                            class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors">
-                        ยกเลิก
-                    </button>
-                    <button type="submit" 
-                            class="flex-1 bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors">
-                        <i class="fas fa-save mr-2"></i>
-                        บันทึก
-                    </button>
-                </div>
-            </form>
-            
-            <button @click="showAddProduct = false; resetProductForm()" 
-                    class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
+        </main>
     </div>
 
     <script>
-        // Configuration
-        const API_URL = 'https://script.google.com/macros/s/AKfycbz2bXxvLeWeTfYb6p78MtHgcrMjHKeeU3Qo1-tsYnpQ-N8MmUQGo7tdvITPnvz5jRxb/exec';
-        
-        // SHA256 hash function
-        async function sha256(message) {
-            const msgBuffer = new TextEncoder().encode(message);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            return hashHex;
-        }
-        
         function adminApp() {
             return {
-                // Auth State
-                isLoggedIn: false,
-                loginForm: { username: '', password: '' },
+                // Admin Config
+                ADMIN_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxOGZI9uqrT-0bJn4tub3lMQivrQhUBJEsvCfQz-osqPdSds-6paVFcLVFENSEg5PTn/exec', // ⚠️ ใส่ URL Apps Script แอดมิน
+                                     
+                // 📊 Google Sheets Info
+                SPREADSHEET_ID: '19jd3hyPBVrwvbqv28uUv47GjoPYcfVv-_1XcZH548I4',
+                SHEETS_URL: 'https://docs.google.com/spreadsheets/d/19jd3hyPBVrwvbqv28uUv47GjoPYcfVv-_1XcZH548I4/edit',
                 
-                // Admin credentials (เปลี่ยนตรงนี้)
-                adminUsername: 'admin',
-                adminPasswordHash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918', // default: admin
+                // Authentication
+                isAuthenticated: false,
+                userEmail: '',
+                loginForm: {
+                    email: '',
+                    password: ''
+                },
+                loginLoading: false,
+                loginError: '',
                 
-                // Page State
-                currentPage: 'dashboard',
+                // Navigation
+                currentTab: 'pos', // เริ่มต้นที่ POS
+                loading: false,
                 
                 // Data
-                stats: {},
                 orders: [],
+                contacts: [],
+                paymentSlips: [],
                 products: [],
-                customers: [],
+                posSales: [],
                 
-                // UI State
-                showOrderDetails: false,
-                showAddProduct: false,
-                selectedOrder: null,
+                // POS System
+                posCart: [],
+                posSearch: '',
+                filteredProducts: [],
+                posPaymentMethod: 'cash',
+                posCustomerName: '',
+                posProcessing: false,
+                
+                // Product Management
+                showAddProductModal: false,
+                showStockAdjustModal: false,
                 editingProduct: null,
                 
-                // Forms
-                productForm: {
-                    name: '',
-                    description: '',
-                    price: 0,
-                    cost: 0,
-                    stock: 0,
-                    category: 'single',
-                    image_url: ''
+                // Reports
+                reportDateFrom: new Date().toISOString().split('T')[0],
+                reportDateTo: new Date().toISOString().split('T')[0],
+                reportData: {
+                    totalSales: 0,
+                    totalOrders: 0,
+                    averageOrderValue: 0,
+                    totalItems: 0,
+                    topProducts: []
                 },
                 
-                // Filters
-                orderSearch: '',
-                orderStatusFilter: '',
-                orderDateFilter: '',
-                
-                // POS
-                posCart: [],
-                posCustomerName: '',
-                posPaymentMethod: 'cash',
-                
-                // Tracking
-                trackingNumber: '',
-                
                 // Computed
-                get filteredOrders() {
-                    return this.orders.filter(order => {
-                        if (this.orderSearch && !order.order_number.toLowerCase().includes(this.orderSearch.toLowerCase())) {
-                            return false;
-                        }
-                        if (this.orderStatusFilter && order.status !== this.orderStatusFilter) {
-                            return false;
-                        }
-                        if (this.orderDateFilter) {
-                            const orderDate = new Date(order.created_at).toDateString();
-                            const filterDate = new Date(this.orderDateFilter).toDateString();
-                            if (orderDate !== filterDate) {
-                                return false;
-                            }
-                        }
-                        return true;
-                    });
+                get totalRevenue() {
+                    return this.orders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
                 },
                 
                 get posTotal() {
                     return this.posCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                 },
                 
-                // Initialize
-                init() {
-                    // Check if already logged in
-                    const adminToken = localStorage.getItem('veevee_admin_token');
-                    if (adminToken) {
-                        this.isLoggedIn = true;
-                        this.loadDashboard();
-                    }
+                get todaySales() {
+                    const today = new Date().toDateString();
+                    return this.posSales
+                        .filter(sale => new Date(sale.timestamp).toDateString() === today)
+                        .reduce((sum, sale) => sum + sale.total, 0);
                 },
                 
-                // Auth Methods
-                async login() {
-                    // Hash the password with SHA256
-                    const passwordHash = await sha256(this.loginForm.password);
+                get todayOrders() {
+                    const today = new Date().toDateString();
+                    return this.posSales.filter(sale => new Date(sale.timestamp).toDateString() === today).length;
+                },
+                
+                get lastSaleTime() {
+                    if (this.posSales.length === 0) return 'ยังไม่มี';
+                    const lastSale = this.posSales[this.posSales.length - 1];
+                    return new Date(lastSale.timestamp).toLocaleTimeString('th-TH');
+                },
+                
+                get lowStockProducts() {
+                    return this.products.filter(product => product.stock <= (product.min_stock || 0));
+                },
+                
+                async init() {
+                    console.log('🛡️ Admin Panel initialized');
                     
-                    // Check credentials
-                    if (this.loginForm.username === this.adminUsername && passwordHash === this.adminPasswordHash) {
-                        this.isLoggedIn = true;
-                        localStorage.setItem('veevee_admin_token', 'admin_token_' + Date.now());
-                        this.loadDashboard();
-                    } else {
-                        alert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+                    // Check Admin Script URL
+                    if (!this.ADMIN_SCRIPT_URL && window.location.hostname === 'localhost') {
+                        console.warn('⚠️ ADMIN_SCRIPT_URL not configured!');
+                        console.warn('📋 Steps to configure:');
+                        console.warn('1. Create new Apps Script project: "VeeVee_Admin"');
+                        console.warn('2. Deploy as Web App with Admin permissions');
+                        console.warn('3. Update ADMIN_SCRIPT_URL in this file');
                     }
-                },
-                
-                logout() {
-                    this.isLoggedIn = false;
-                    localStorage.removeItem('veevee_admin_token');
-                    this.loginForm = { username: '', password: '' };
-                },
-                
-                // API Methods
-                async apiCall(action, params = {}) {
-                    try {
-                        const response = await fetch(API_URL, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action, ...params })
-                        });
-                        
-                        const result = await response.json();
-                        if (!result.success) {
-                            throw new Error(result.error || 'API Error');
-                        }
-                        
-                        return result.data;
-                    } catch (error) {
-                        console.error('API Error:', error);
-                        alert('เกิดข้อผิดพลาด: ' + error.message);
-                        throw error;
-                    }
-                },
-                
-                // Dashboard Methods
-                async loadDashboard() {
-                    try {
-                        // Load all data
-                        await Promise.all([
-                            this.loadStats(),
-                            this.loadOrders(),
-                            this.loadProducts(),
-                            this.loadCustomers()
-                        ]);
-                    } catch (error) {
-                        console.error('Failed to load dashboard:', error);
-                    }
-                },
-                
-                async loadStats() {
-                    this.stats = await this.apiCall('get_dashboard_stats');
-                },
-                
-                async loadOrders() {
-                    this.orders = await this.apiCall('get_all_orders');
-                },
-                
-                async loadProducts() {
-                    this.products = await this.apiCall('get_products');
-                },
-                
-                async loadCustomers() {
-                    this.customers = await this.apiCall('get_all_customers');
-                },
-                
-                // Order Methods
-                viewOrderDetails(order) {
-                    this.selectedOrder = order;
-                    this.trackingNumber = '';
-                    this.showOrderDetails = true;
-                },
-                
-                async updateOrderStatus(orderId, newStatus) {
-                    try {
-                        await this.apiCall('update_order_status', {
-                            order_id: orderId,
-                            status: newStatus
-                        });
-                        
-                        // Update local data
-                        const order = this.orders.find(o => o.id === orderId);
-                        if (order) {
-                            order.status = newStatus;
-                        }
-                        
-                        // Reload stats
-                        await this.loadStats();
-                        
-                        alert('อัพเดทสถานะสำเร็จ');
-                    } catch (error) {
-                        alert('อัพเดทสถานะไม่สำเร็จ');
-                    }
-                },
-                
-                async updateTracking() {
-                    if (!this.trackingNumber || !this.selectedOrder) return;
                     
-                    try {
-                        await this.apiCall('create_shipment', {
-                            order_id: this.selectedOrder.id,
-                            tracking_number: this.trackingNumber
-                        });
-                        
-                        alert('อัพเดทเลขพัสดุสำเร็จ');
-                        this.showOrderDetails = false;
-                        await this.loadOrders();
-                    } catch (error) {
-                        alert('อัพเดทเลขพัสดุไม่สำเร็จ');
-                    }
-                },
-                
-                editOrder(order) {
-                    // Implement order editing
-                    alert('ฟีเจอร์นี้อยู่ระหว่างพัฒนา');
-                },
-                
-                printOrder(order) {
-                    // Implement order printing
-                    window.print();
-                },
-                
-                // Product Methods
-                editProduct(product) {
-                    this.editingProduct = product;
-                    this.productForm = { ...product };
-                    this.showAddProduct = true;
-                },
-                
-                async saveProduct() {
-                    try {
-                        if (this.editingProduct) {
-                            await this.apiCall('update_product', {
-                                id: this.editingProduct.id,
-                                ...this.productForm
-                            });
-                        } else {
-                            await this.apiCall('add_product', this.productForm);
-                        }
-                        
-                        alert('บันทึกสินค้าสำเร็จ');
-                        this.showAddProduct = false;
-                        this.resetProductForm();
-                        await this.loadProducts();
-                    } catch (error) {
-                        alert('บันทึกสินค้าไม่สำเร็จ');
-                    }
-                },
-                
-                resetProductForm() {
-                    this.editingProduct = null;
-                    this.productForm = {
-                        name: '',
-                        description: '',
-                        price: 0,
-                        cost: 0,
-                        stock: 0,
-                        category: 'single',
-                        image_url: ''
-                    };
-                },
-                
-                async updateStock(product) {
-                    const newStock = prompt(`ปรับสต็อกสินค้า ${product.name}\nสต็อกปัจจุบัน: ${product.stock}`, product.stock);
-                    
-                    if (newStock !== null && !isNaN(newStock)) {
-                        try {
-                            await this.apiCall('update_stock', {
-                                id: product.id,
-                                stock: parseInt(newStock)
-                            });
+                    // Check authentication state
+                    window.firebaseOnAuthStateChanged(window.firebaseAuth, (user) => {
+                        if (user) {
+                            this.isAuthenticated = true;
+                            this.userEmail = user.email;
+                            this.loadAllData();
                             
-                            product.stock = parseInt(newStock);
-                            alert('อัพเดทสต็อกสำเร็จ');
-                        } catch (error) {
-                            alert('อัพเดทสต็อกไม่สำเร็จ');
+                            // Initialize reports with today's date
+                            this.generateSalesReport();
+                        } else {
+                            this.isAuthenticated = false;
+                            this.userEmail = '';
                         }
+                    });
+                },
+                
+                async login() {
+                    this.loginLoading = true;
+                    this.loginError = '';
+                    
+                    try {
+                        const userCredential = await window.firebaseSignInWithEmailAndPassword(
+                            window.firebaseAuth,
+                            this.loginForm.email,
+                            this.loginForm.password
+                        );
+                        
+                        console.log('✅ Admin logged in:', userCredential.user.email);
+                        
+                    } catch (error) {
+                        console.error('❌ Login failed:', error);
+                        this.loginError = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+                    } finally {
+                        this.loginLoading = false;
                     }
                 },
                 
-                // Customer Methods
-                viewCustomer(customer) {
-                    // Implement customer viewing
-                    alert('ข้อมูลลูกค้า:\n\n' + JSON.stringify(customer, null, 2));
+                async logout() {
+                    try {
+                        await window.firebaseSignOut(window.firebaseAuth);
+                        console.log('✅ Admin logged out');
+                    } catch (error) {
+                        console.error('❌ Logout failed:', error);
+                    }
                 },
                 
-                editCustomer(customer) {
-                    // Implement customer editing
-                    alert('ฟีเจอร์นี้อยู่ระหว่างพัฒนา');
+                async loadAllData() {
+                    this.loading = true;
+                    
+                    try {
+                        await Promise.all([
+                            this.refreshOrders(),
+                            this.refreshContacts(),
+                            this.refreshPaymentSlips(),
+                            this.refreshProducts(),
+                            this.refreshPOSSales()
+                        ]);
+                        
+                        // Initialize filtered products for POS
+                        this.filterProducts();
+                        
+                    } catch (error) {
+                        console.error('❌ Failed to load data:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async refreshOrders() {
+                    try {
+                        const ordersRef = window.firebaseCollection(window.firebaseDb, 'orders');
+                        const q = window.firebaseQuery(ordersRef, window.firebaseOrderBy('timestamp', 'desc'));
+                        const querySnapshot = await window.firebaseGetDocs(q);
+                        
+                        this.orders = [];
+                        querySnapshot.forEach((doc) => {
+                            this.orders.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        console.log('✅ Orders loaded:', this.orders.length);
+                    } catch (error) {
+                        console.error('❌ Failed to load orders:', error);
+                    }
+                },
+                
+                async refreshContacts() {
+                    try {
+                        const contactsRef = window.firebaseCollection(window.firebaseDb, 'contacts');
+                        const q = window.firebaseQuery(contactsRef, window.firebaseOrderBy('timestamp', 'desc'));
+                        const querySnapshot = await window.firebaseGetDocs(q);
+                        
+                        this.contacts = [];
+                        querySnapshot.forEach((doc) => {
+                            this.contacts.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        console.log('✅ Contacts loaded:', this.contacts.length);
+                    } catch (error) {
+                        console.error('❌ Failed to load contacts:', error);
+                    }
+                },
+                
+                async refreshPaymentSlips() {
+                    try {
+                        const slipsRef = window.firebaseCollection(window.firebaseDb, 'payment_slips');
+                        const q = window.firebaseQuery(slipsRef, window.firebaseOrderBy('timestamp', 'desc'));
+                        const querySnapshot = await window.firebaseGetDocs(q);
+                        
+                        this.paymentSlips = [];
+                        querySnapshot.forEach((doc) => {
+                            this.paymentSlips.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        console.log('✅ Payment slips loaded:', this.paymentSlips.length);
+                    } catch (error) {
+                        console.error('❌ Failed to load payment slips:', error);
+                    }
+                },
+                
+                async refreshProducts() {
+                    try {
+                        // สร้างสินค้าตัวอย่างถ้าไม่มี
+                        if (this.products.length === 0) {
+                            this.products = [
+                                {
+                                    id: 'prod_001',
+                                    sku: 'VV001',
+                                    name: 'VeeVee Anti-Mosquito Patch',
+                                    description: 'แผ่นแปะป้องกันยุง 12 ชิ้น/ซอง',
+                                    price: 119,
+                                    stock: 50,
+                                    min_stock: 10,
+                                    unit: 'ซอง',
+                                    category: 'สุขภาพ',
+                                    active: true
+                                },
+                                {
+                                    id: 'prod_002',
+                                    sku: 'VV002',
+                                    name: 'VeeVee Refill Pack',
+                                    description: 'แผ่นแปะเติม 24 ชิ้น',
+                                    price: 99,
+                                    stock: 30,
+                                    min_stock: 5,
+                                    unit: 'แพ็ค',
+                                    category: 'สุขภาพ',
+                                    active: true
+                                },
+                                {
+                                    id: 'prod_003',
+                                    sku: 'VV003',
+                                    name: 'VeeVee Family Set',
+                                    description: 'ชุดครอบครัว 5 ซอง',
+                                    price: 499,
+                                    stock: 15,
+                                    min_stock: 3,
+                                    unit: 'ชุด',
+                                    category: 'แพ็คเกจ',
+                                    active: true
+                                }
+                            ];
+                        }
+                        
+                        console.log('✅ Products loaded:', this.products.length);
+                    } catch (error) {
+                        console.error('❌ Failed to load products:', error);
+                    }
+                },
+                
+                async refreshPOSSales() {
+                    try {
+                        const salesRef = window.firebaseCollection(window.firebaseDb, 'pos_sales');
+                        const q = window.firebaseQuery(salesRef, window.firebaseOrderBy('timestamp', 'desc'));
+                        const querySnapshot = await window.firebaseGetDocs(q);
+                        
+                        this.posSales = [];
+                        querySnapshot.forEach((doc) => {
+                            this.posSales.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        console.log('✅ POS Sales loaded:', this.posSales.length);
+                    } catch (error) {
+                        console.error('❌ Failed to load POS sales:', error);
+                    }
                 },
                 
                 // POS Methods
-                addToPOS(product) {
+                filterProducts() {
+                    if (!this.posSearch) {
+                        this.filteredProducts = this.products.filter(p => p.active && p.stock > 0);
+                    } else {
+                        this.filteredProducts = this.products.filter(p => 
+                            p.active && 
+                            p.stock > 0 && 
+                            (p.name.toLowerCase().includes(this.posSearch.toLowerCase()) || 
+                             p.sku.toLowerCase().includes(this.posSearch.toLowerCase()))
+                        );
+                    }
+                },
+                
+                addToCart(product) {
+                    if (product.stock <= 0) {
+                        alert('สินค้าหมดสต็อก');
+                        return;
+                    }
+                    
                     const existingItem = this.posCart.find(item => item.id === product.id);
                     
                     if (existingItem) {
                         if (existingItem.quantity < product.stock) {
                             existingItem.quantity++;
                         } else {
-                            alert('สินค้าในสต็อกไม่เพียงพอ');
+                            alert('จำนวนเกินสต็อกที่มี');
                         }
                     } else {
                         this.posCart.push({
-                            ...product,
-                            quantity: 1
+                            id: product.id,
+                            name: product.name,
+                            price: product.price,
+                            quantity: 1,
+                            stock: product.stock,
+                            unit: product.unit
                         });
                     }
                 },
                 
-                increasePOSQuantity(index) {
+                updateCartQuantity(index, change) {
                     const item = this.posCart[index];
-                    const product = this.products.find(p => p.id === item.id);
+                    const newQuantity = item.quantity + change;
                     
-                    if (item.quantity < product.stock) {
-                        item.quantity++;
+                    if (newQuantity <= 0) {
+                        this.posCart.splice(index, 1);
+                    } else if (newQuantity <= item.stock) {
+                        item.quantity = newQuantity;
                     } else {
-                        alert('สินค้าในสต็อกไม่เพียงพอ');
+                        alert('จำนวนเกินสต็อกที่มี');
                     }
                 },
                 
-                decreasePOSQuantity(index) {
-                    if (this.posCart[index].quantity > 1) {
-                        this.posCart[index].quantity--;
-                    }
-                },
-                
-                removeFromPOS(index) {
-                    this.posCart.splice(index, 1);
+                clearPOSCart() {
+                    this.posCart = [];
                 },
                 
                 async processPOSSale() {
-                    if (this.posCart.length === 0) {
-                        alert('กรุณาเลือกสินค้า');
-                        return;
-                    }
+                    if (this.posCart.length === 0) return;
                     
-                    if (confirm(`ยืนยันการขาย\nยอดรวม: ฿${this.posTotal}`)) {
-                        try {
-                            await this.apiCall('pos_sale', {
-                                items: this.posCart.map(item => ({
-                                    product_id: item.id,
-                                    quantity: item.quantity
-                                })),
-                                payment_method: this.posPaymentMethod,
-                                customer_name: this.posCustomerName || 'Walk-in Customer'
-                            });
-                            
-                            alert('บันทึกการขายสำเร็จ');
-                            
-                            // Reset POS
-                            this.posCart = [];
-                            this.posCustomerName = '';
-                            this.posPaymentMethod = 'cash';
-                            
-                            // Reload products to update stock
-                            await this.loadProducts();
-                            await this.loadStats();
-                        } catch (error) {
-                            alert('บันทึกการขายไม่สำเร็จ');
-                        }
-                    }
-                },
-                
-                // Helper Methods
-                formatNumber(num) {
-                    return new Intl.NumberFormat('th-TH').format(num);
-                },
-                
-                formatDate(dateString) {
-                    const date = new Date(dateString);
-                    return date.toLocaleDateString('th-TH', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                },
-                
-                getOrderStatusText(status) {
-                    const statusMap = {
-                        'pending': 'รอดำเนินการ',
-                        'processing': 'กำลังดำเนินการ',
-                        'shipped': 'จัดส่งแล้ว',
-                        'delivered': 'ส่งสำเร็จ',
-                        'cancelled': 'ยกเลิก'
-                    };
-                    return statusMap[status] || status;
-                },
-                
-                getPaymentMethodText(method) {
-                    const methodMap = {
-                        'qr': 'QR PromptPay',
-                        'transfer': 'โอนเงินธนาคาร',
-                        'cod': 'เก็บเงินปลายทาง',
-                        'cash': 'เงินสด',
-                        'credit': 'บัตรเครดิต'
-                    };
-                    return methodMap[method] || method;
-                },
-                
-                getCustomerName(customerId) {
-                    const customer = this.customers.find(c => c.id === customerId);
-                    return customer ? customer.name : 'ไม่พบข้อมูล';
-                },
-                
-                getCustomerPhone(customerId) {
-                    const customer = this.customers.find(c => c.id === customerId);
-                    return customer ? customer.phone : '-';
-                },
-                
-                getCustomerEmail(customerId) {
-                    const customer = this.customers.find(c => c.id === customerId);
-                    return customer ? customer.email : '-';
-                },
-                
-                formatShippingAddress(addressString) {
+                    this.posProcessing = true;
+                    
                     try {
-                        const address = JSON.parse(addressString);
-                        return `${address.name}\n${address.phone}\n${address.address}\n${address.district} ${address.province} ${address.postal_code}`;
-                    } catch (e) {
-                        return addressString;
+                        const saleData = {
+                            sale_id: 'POS_' + Date.now(),
+                            items: this.posCart.map(item => ({
+                                product_id: item.id,
+                                name: item.name,
+                                price: item.price,
+                                quantity: item.quantity,
+                                subtotal: item.price * item.quantity
+                            })),
+                            total: this.posTotal,
+                            payment_method: this.posPaymentMethod,
+                            customer_name: this.posCustomerName || 'ลูกค้าทั่วไป',
+                            timestamp: new Date().toISOString(),
+                            type: 'pos_sale'
+                        };
+                        
+                        // ✅ Try Admin Apps Script first
+                        let appsScriptSuccess = false;
+                        if (this.ADMIN_SCRIPT_URL) {
+                            try {
+                                const appsScriptResult = await this.sendToAdminScript({
+                                    action: 'pos_sale',
+                                    ...saleData
+                                });
+                                appsScriptSuccess = appsScriptResult.success;
+                                console.log('📧 Admin Apps Script result:', appsScriptResult);
+                            } catch (error) {
+                                console.error('❌ Admin Apps Script failed:', error);
+                            }
+                        }
+
+                        // ✅ Save to Firebase as backup
+                        let firebaseSuccess = false;
+                        try {
+                            const salesRef = window.firebaseCollection(window.firebaseDb, 'pos_sales');
+                            await window.firebaseAddDoc(salesRef, saleData);
+                            firebaseSuccess = true;
+                            console.log('🔥 POS sale saved to Firebase');
+                        } catch (error) {
+                            console.error('❌ Firebase save failed:', error);
+                        }
+                        
+                        if (appsScriptSuccess || firebaseSuccess) {
+                            // Update stock locally
+                            for (const item of this.posCart) {
+                                const product = this.products.find(p => p.id === item.id);
+                                if (product) {
+                                    product.stock -= item.quantity;
+                                }
+                            }
+                            
+                            // Clear cart and refresh data
+                            this.clearPOSCart();
+                            this.posCustomerName = '';
+                            await this.refreshPOSSales();
+                            
+                            alert('ขายสำเร็จ! บิลเลขที่: ' + saleData.sale_id);
+                            console.log('✅ POS Sale completed:', saleData.sale_id);
+                        } else {
+                            throw new Error('ไม่สามารถบันทึกการขายได้');
+                        }
+                        
+                    } catch (error) {
+                        console.error('❌ POS Sale failed:', error);
+                        alert('เกิดข้อผิดพลาดในการขาย: ' + error.message);
+                    } finally {
+                        this.posProcessing = false;
                     }
                 },
                 
-                async exportData() {
-                    alert('กำลังส่งออกข้อมูล... (ฟีเจอร์นี้อยู่ระหว่างพัฒนา)');
-                }
+                // ✅ ส่งข้อมูลไป Admin Apps Script
+                async sendToAdminScript(data) {
+                    try {
+                        if (!this.ADMIN_SCRIPT_URL) {
+                            console.warn('⚠️ Admin Apps Script URL not configured');
+                            return { success: false, message: 'Admin system not configured' };
+                        }
+
+                        console.log('📤 Sending to Admin Apps Script...');
+                        
+                        const response = await fetch(this.ADMIN_SCRIPT_URL, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                ...data,
+                                referrer: window.location.href,
+                                admin_auth: this.userEmail // ✅ ส่ง admin email ไปด้วย
+                            }),
+                            mode: 'cors'
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+
+                        const result = await response.json();
+                        console.log('✅ Admin Apps Script response:', result);
+                        
+                        return result;
+
+                    } catch (error) {
+                        console.error('❌ Admin Apps Script Error:', error);
+                        return { 
+                            success: false, 
+                            message: 'ไม่สามารถส่งข้อมูลไปยังระบบจัดการได้',
+                            error: error.message 
+                        };
+                    }
+                },
+                
+                // Inventory Methods
+                getTotalStock() {
+                    return this.products.reduce((sum, product) => sum + product.stock, 0);
+                },
+                
+                getInventoryValue() {
+                    return this.products.reduce((sum, product) => sum + (product.stock * product.price), 0);
+                },
+                
+                adjustStock(product) {
+                    const newStock = prompt(`ปรับสต็อก ${product.name}\nสต็อกปัจจุบัน: ${product.stock} ${product.unit}\n\nใส่จำนวนสต็อกใหม่:`, product.stock);
+                    
+                    if (newStock !== null && !isNaN(newStock) && parseInt(newStock) >= 0) {
+                        product.stock = parseInt(newStock);
+                        console.log(`✅ Stock adjusted: ${product.name} = ${product.stock} ${product.unit}`);
+                        
+                        // TODO: Save to database
+                    }
+                },
+                
+                editProduct(product) {
+                    this.editingProduct = { ...product };
+                    this.showAddProductModal = true;
+                },
+                
+                toggleProductStatus(product) {
+                    product.active = !product.active;
+                    console.log(`✅ Product ${product.active ? 'activated' : 'deactivated'}: ${product.name}`);
+                    
+                    // TODO: Save to database
+                },
+                
+                // Reports Methods
+                generateSalesReport() {
+                    const startDate = new Date(this.reportDateFrom);
+                    const endDate = new Date(this.reportDateTo);
+                    endDate.setHours(23, 59, 59, 999);
+                    
+                    const filteredSales = this.posSales.filter(sale => {
+                        const saleDate = new Date(sale.timestamp);
+                        return saleDate >= startDate && saleDate <= endDate;
+                    });
+                    
+                    const totalSales = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
+                    const totalOrders = filteredSales.length;
+                    const totalItems = filteredSales.reduce((sum, sale) => sum + sale.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
+                    
+                    // Calculate top products
+                    const productSales = {};
+                    filteredSales.forEach(sale => {
+                        sale.items.forEach(item => {
+                            if (!productSales[item.product_id]) {
+                                productSales[item.product_id] = {
+                                    product_id: item.product_id,
+                                    product_name: item.name,
+                                    quantity: 0,
+                                    total_sales: 0,
+                                    unit: this.products.find(p => p.id === item.product_id)?.unit || 'ชิ้น'
+                                };
+                            }
+                            productSales[item.product_id].quantity += item.quantity;
+                            productSales[item.product_id].total_sales += item.subtotal;
+                        });
+                    });
+                    
+                    const topProducts = Object.values(productSales)
+                        .sort((a, b) => b.total_sales - a.total_sales)
+                        .slice(0, 10);
+                    
+                    this.reportData = {
+                        totalSales,
+                        totalOrders,
+                        averageOrderValue: totalOrders > 0 ? totalSales / totalOrders : 0,
+                        totalItems,
+                        topProducts
+                    };
+                    
+                    console.log('📊 Sales report generated:', this.reportData);
+                },
+                
+                exportReport() {
+                    // TODO: Implement export functionality
+                    alert('ฟีเจอร์ส่งออกรายงานจะพัฒนาในเวอร์ชันต่อไป');
+                },
+                
+                generateStockReport() {
+                    // TODO: Implement stock report
+                    alert('ฟีเจอร์รายงานคลังสินค้าจะพัฒนาในเวอร์ชันต่อไป');
+                },
+                
+                    // ✅ Admin Functions
+                    openGoogleSheets() {
+                        if (this.SHEETS_URL) {
+                            window.open(this.SHEETS_URL, '_blank');
+                            console.log('📊 Opening Google Sheets from Admin Panel:', this.SHEETS_URL);
+                        } else {
+                            alert('Google Sheets URL ไม่ได้ตั้งค่า');
+                        }
+                    },
+                    
+                    formatDate(timestamp) {
+                        if (!timestamp) return 'N/A';
+                        
+                        let date;
+                        if (timestamp.seconds) {
+                            // Firestore timestamp
+                            date = new Date(timestamp.seconds * 1000);
+                        } else if (typeof timestamp === 'string') {
+                            date = new Date(timestamp);
+                        } else {
+                            date = new Date(timestamp);
+                        }
+                        
+                        return date.toLocaleDateString('th-TH') + ' ' + date.toLocaleTimeString('th-TH');
+                    }
             }
         }
     </script>
