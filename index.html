@@ -9,524 +9,105 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
     <!-- Firebase SDK -->
-    <!-- แทนที่ส่วน Firebase Script ในโค้ดเดิม -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, addDoc, query, orderBy, limit, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
-<script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, addDoc, query, orderBy, limit, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-
-    // ⚠️ Firebase Config
-    const firebaseConfig = {
-        apiKey: "AIzaSyAlUUr6ATEfDQohr5Zvdk5_C7xKJFBLem0",
-        authDomain: "veeveeweb.firebaseapp.com",
-        projectId: "veeveeweb",
-        storageBucket: "veeveeweb.firebasestorage.app",
-        messagingSenderId: "105473827182",
-        appId: "1:105473827182:web:d91d4b3bb2e91d8f456a3b"
-    };
-
-    try {
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-
-        // ✅ เช็คว่า Firebase โหลดสำเร็จ
-        console.log('🔥 Firebase App initialized:', app.name);
-        console.log('🔥 Firebase Auth initialized:', auth.app.name);
-
-        // ✅ Export ฟังก์ชันไปยัง window พร้อม error handling
-        window.firebaseDb = db;
-        window.firebaseAuth = auth;
-        window.firebaseCollection = collection;
-        window.firebaseGetDocs = getDocs;
-        window.firebaseAddDoc = addDoc;
-        window.firebaseDoc = doc;
-        window.firebaseUpdateDoc = updateDoc;
-        window.firebaseDeleteDoc = deleteDoc;
-        window.firebaseQuery = query;
-        window.firebaseOrderBy = orderBy;
-        window.firebaseLimit = limit;
-        window.firebaseWhere = where;
-        window.firebaseServerTimestamp = serverTimestamp;
-        window.firebaseSignInWithEmailAndPassword = signInWithEmailAndPassword;
-        window.firebaseSignOut = signOut;
-        
-        // ✅ แก้ไข onAuthStateChanged พร้อม error handling
-        window.firebaseOnAuthStateChanged = function(auth, callback) {
-            try {
-                return onAuthStateChanged(auth, callback);
-            } catch (error) {
-                console.error('❌ Firebase onAuthStateChanged error:', error);
-                // ✅ Fallback: เรียก callback ด้วย null user
-                setTimeout(() => callback(null), 100);
-                return () => {}; // Return empty unsubscribe function
-            }
+        // ⚠️ Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyAlUUr6ATEfDQohr5Zvdk5_C7xKJFBLem0",
+            authDomain: "veeveeweb.firebaseapp.com",
+            projectId: "veeveeweb",
+            storageBucket: "veeveeweb.firebasestorage.app",
+            messagingSenderId: "105473827182",
+            appId: "1:105473827182:web:d91d4b3bb2e91d8f456a3b"
         };
 
-        // ✅ ทดสอบ Firebase Auth
-        window.firebaseOnAuthStateChanged(auth, (user) => {
-            if (user) {
-                console.log('✅ Firebase Auth: User is signed in:', user.email);
-                
-                // ✅ Trigger Alpine.js อัปเดต
-                if (window.Alpine && window.Alpine.store) {
-                    setTimeout(() => {
-                        const adminApp = document.querySelector('[x-data="adminApp"]');
-                        if (adminApp && adminApp._x_dataStack) {
-                            const data = adminApp._x_dataStack[0];
-                            if (data) {
-                                data.isAuthenticated = true;
-                                data.userEmail = user.email;
-                                console.log('✅ Admin state updated via Alpine');
-                                
-                                // โหลดข้อมูล
-                                if (typeof data.loadAllData === 'function') {
-                                    data.loadAllData();
+        try {
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            const auth = getAuth(app);
+
+            // ✅ เช็คว่า Firebase โหลดสำเร็จ
+            console.log('🔥 Firebase App initialized:', app.name);
+            console.log('🔥 Firebase Auth initialized:', auth.app.name);
+
+            // ✅ Export ฟังก์ชันไปยัง window พร้อม error handling
+            window.firebaseDb = db;
+            window.firebaseAuth = auth;
+            window.firebaseCollection = collection;
+            window.firebaseGetDocs = getDocs;
+            window.firebaseAddDoc = addDoc;
+            window.firebaseDoc = doc;
+            window.firebaseUpdateDoc = updateDoc;
+            window.firebaseDeleteDoc = deleteDoc;
+            window.firebaseQuery = query;
+            window.firebaseOrderBy = orderBy;
+            window.firebaseLimit = limit;
+            window.firebaseWhere = where;
+            window.firebaseServerTimestamp = serverTimestamp;
+            window.firebaseSignInWithEmailAndPassword = signInWithEmailAndPassword;
+            window.firebaseSignOut = signOut;
+            
+            // ✅ แก้ไข onAuthStateChanged พร้อม error handling
+            window.firebaseOnAuthStateChanged = function(auth, callback) {
+                try {
+                    return onAuthStateChanged(auth, callback);
+                } catch (error) {
+                    console.error('❌ Firebase onAuthStateChanged error:', error);
+                    // ✅ Fallback: เรียก callback ด้วย null user
+                    setTimeout(() => callback(null), 100);
+                    return () => {}; // Return empty unsubscribe function
+                }
+            };
+
+            // ✅ ทดสอบ Firebase Auth
+            window.firebaseOnAuthStateChanged(auth, (user) => {
+                if (user) {
+                    console.log('✅ Firebase Auth: User is signed in:', user.email);
+                    
+                    // ✅ Trigger Alpine.js อัปเดต
+                    if (window.Alpine && window.Alpine.store) {
+                        setTimeout(() => {
+                            const adminApp = document.querySelector('[x-data="adminApp"]');
+                            if (adminApp && adminApp._x_dataStack) {
+                                const data = adminApp._x_dataStack[0];
+                                if (data) {
+                                    data.isAuthenticated = true;
+                                    data.userEmail = user.email;
+                                    console.log('✅ Admin state updated via Alpine');
+                                    
+                                    // โหลดข้อมูล
+                                    if (typeof data.loadAllData === 'function') {
+                                        data.loadAllData();
+                                    }
                                 }
                             }
-                        }
-                    }, 500);
-                }
-            } else {
-                console.log('🚪 Firebase Auth: User is signed out');
-            }
-        });
-
-        console.log('✅ Firebase Admin initialized successfully');
-
-    } catch (error) {
-        console.error('❌ Firebase initialization failed:', error);
-        
-        // ✅ Fallback: Mock Firebase functions
-        window.firebaseDb = null;
-        window.firebaseAuth = null;
-        window.firebaseOnAuthStateChanged = function(auth, callback) {
-            console.warn('⚠️ Firebase not available, using fallback');
-            setTimeout(() => callback(null), 100);
-            return () => {};
-        };
-        
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ Firebase กรุณารีเฟรชหน้าเว็บ');
-    }
-</script>
-
-<!-- ✅ แก้ไข Alpine.js adminApp -->
-<script>
-    function adminApp() {
-        return {
-            // Admin Config
-            ADMIN_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwoEN86QTpuRxDckf8mQiga9pkn-RJBM0z00nqywbPUbeeIR34XX6JPHQeVcuLoWKAeUA/exec',
-            SPREADSHEET_ID: '19jd3hyPBVrwvbqv28uUv47GjoPYcfVv-_1XcZH548I4',
-            SHEETS_URL: 'https://docs.google.com/spreadsheets/d/19jd3hyPBVrwvbqv28uUv47GjoPYcfVv-_1XcZH548I4/edit',
-            
-            // Authentication
-            isAuthenticated: false,
-            userEmail: '',
-            loginForm: {
-                email: 'admin@veevee.com',
-                password: ''
-            },
-            loginLoading: false,
-            loginError: '',
-            
-            // Navigation
-            currentTab: 'pos',
-            loading: false,
-            
-            // Data
-            orders: [],
-            contacts: [],
-            paymentSlips: [],
-            products: [],
-            posSales: [],
-            
-            // POS System
-            posCart: [],
-            posSearch: '',
-            filteredProducts: [],
-            posPaymentMethod: 'cash',
-            posCustomerName: '',
-            posProcessing: false,
-            
-            // Reports
-            reportDateFrom: new Date().toISOString().split('T')[0],
-            reportDateTo: new Date().toISOString().split('T')[0],
-            reportData: {
-                totalSales: 0,
-                totalOrders: 0,
-                averageOrderValue: 0,
-                totalItems: 0,
-                topProducts: []
-            },
-            
-            // Computed properties
-            get totalRevenue() {
-                return this.orders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
-            },
-            
-            get posTotal() {
-                return this.posCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            },
-            
-            get todaySales() {
-                const today = new Date().toDateString();
-                return this.posSales
-                    .filter(sale => new Date(sale.timestamp).toDateString() === today)
-                    .reduce((sum, sale) => sum + sale.total, 0);
-            },
-            
-            get todayOrders() {
-                const today = new Date().toDateString();
-                return this.posSales.filter(sale => new Date(sale.timestamp).toDateString() === today).length;
-            },
-            
-            get lastSaleTime() {
-                if (this.posSales.length === 0) return 'ยังไม่มี';
-                const lastSale = this.posSales[this.posSales.length - 1];
-                return new Date(lastSale.timestamp).toLocaleTimeString('th-TH');
-            },
-            
-            get lowStockProducts() {
-                return this.products.filter(product => product.stock <= (product.min_stock || 0));
-            },
-
-            // ✅ ปรับปรุง init function
-            async init() {
-                console.log('🛡️ Admin Panel initialized');
-                
-                // ✅ รอให้ Firebase โหลดเสร็จก่อน
-                let retryCount = 0;
-                const maxRetries = 10;
-                
-                const waitForFirebase = () => {
-                    return new Promise((resolve) => {
-                        const checkFirebase = () => {
-                            if (window.firebaseAuth && window.firebaseOnAuthStateChanged) {
-                                console.log('✅ Firebase ready!');
-                                resolve(true);
-                            } else if (retryCount < maxRetries) {
-                                retryCount++;
-                                console.log(`⏳ Waiting for Firebase... (${retryCount}/${maxRetries})`);
-                                setTimeout(checkFirebase, 500);
-                            } else {
-                                console.warn('⚠️ Firebase timeout, continuing without auth');
-                                resolve(false);
-                            }
-                        };
-                        checkFirebase();
-                    });
-                };
-
-                const firebaseReady = await waitForFirebase();
-                
-                if (firebaseReady) {
-                    // ✅ Firebase พร้อม - ตั้งค่า auth listener
-                    try {
-                        window.firebaseOnAuthStateChanged(window.firebaseAuth, (user) => {
-                            if (user) {
-                                console.log('✅ User authenticated:', user.email);
-                                this.isAuthenticated = true;
-                                this.userEmail = user.email;
-                                this.loadAllData();
-                                this.generateSalesReport();
-                            } else {
-                                console.log('🚪 User not authenticated');
-                                this.isAuthenticated = false;
-                                this.userEmail = '';
-                            }
-                        });
-                    } catch (error) {
-                        console.error('❌ Auth listener error:', error);
+                        }, 500);
                     }
                 } else {
-                    // ✅ Firebase ไม่พร้อม - ใช้ fallback
-                    console.warn('⚠️ Running in offline mode');
+                    console.log('🚪 Firebase Auth: User is signed out');
                 }
-            },
+            });
+
+            console.log('✅ Firebase Admin initialized successfully');
+
+        } catch (error) {
+            console.error('❌ Firebase initialization failed:', error);
             
-            // ✅ ปรับปรุง login function
-            async login() {
-                this.loginLoading = true;
-                this.loginError = '';
-                
-                try {
-                    console.log('🔐 Attempting login...');
-                    
-                    if (!window.firebaseSignInWithEmailAndPassword || !window.firebaseAuth) {
-                        throw new Error('Firebase Authentication ไม่พร้อมใช้งาน');
-                    }
-                    
-                    const userCredential = await window.firebaseSignInWithEmailAndPassword(
-                        window.firebaseAuth,
-                        this.loginForm.email,
-                        this.loginForm.password
-                    );
-                    
-                    console.log('✅ Admin logged in:', userCredential.user.email);
-                    
-                    // ✅ อัปเดต state ทันที (ไม่รอ onAuthStateChanged)
-                    this.isAuthenticated = true;
-                    this.userEmail = userCredential.user.email;
-                    
-                    // โหลดข้อมูล
-                    setTimeout(() => {
-                        this.loadAllData();
-                        this.generateSalesReport();
-                    }, 500);
-                    
-                } catch (error) {
-                    console.error('❌ Login failed:', error);
-                    
-                    if (error.code === 'auth/user-not-found') {
-                        this.loginError = 'ไม่พบผู้ใช้นี้ในระบบ';
-                    } else if (error.code === 'auth/wrong-password') {
-                        this.loginError = 'รหัสผ่านไม่ถูกต้อง';
-                    } else if (error.code === 'auth/invalid-email') {
-                        this.loginError = 'รูปแบบอีเมลไม่ถูกต้อง';
-                    } else {
-                        this.loginError = 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่';
-                    }
-                } finally {
-                    this.loginLoading = false;
-                }
-            },
+            // ✅ Fallback: Mock Firebase functions
+            window.firebaseDb = null;
+            window.firebaseAuth = null;
+            window.firebaseOnAuthStateChanged = function(auth, callback) {
+                console.warn('⚠️ Firebase not available, using fallback');
+                setTimeout(() => callback(null), 100);
+                return () => {};
+            };
             
-            // ✅ ฟังก์ชันอื่นๆ เหมือนเดิม...
-            async logout() {
-                try {
-                    if (window.firebaseSignOut && window.firebaseAuth) {
-                        await window.firebaseSignOut(window.firebaseAuth);
-                    }
-                    this.isAuthenticated = false;
-                    this.userEmail = '';
-                    console.log('✅ Admin logged out');
-                } catch (error) {
-                    console.error('❌ Logout failed:', error);
-                    // Force logout
-                    this.isAuthenticated = false;
-                    this.userEmail = '';
-                }
-            },
-
-            // ✅ รวมฟังก์ชันที่เหลือ...
-            async loadAllData() {
-                this.loading = true;
-                try {
-                    await Promise.all([
-                        this.refreshOrders(),
-                        this.refreshContacts(),
-                        this.refreshPaymentSlips(),
-                        this.refreshProducts(),
-                        this.refreshPOSSales()
-                    ]);
-                    this.filterProducts();
-                } catch (error) {
-                    console.error('❌ Failed to load data:', error);
-                } finally {
-                    this.loading = false;
-                }
-            },
-
-            // ... ส่วนอื่นๆ ตามโค้ดเดิม
-            async refreshProducts() {
-                try {
-                    if (this.products.length === 0) {
-                        this.products = [
-                            {
-                                id: 'prod_001',
-                                sku: 'VV001',
-                                name: 'VeeVee Anti-Mosquito Patch',
-                                description: 'แผ่นแปะป้องกันยุง 12 ชิ้น/ซอง',
-                                price: 119,
-                                stock: 50,
-                                min_stock: 10,
-                                unit: 'ซอง',
-                                category: 'สุขภาพ',
-                                active: true
-                            },
-                            {
-                                id: 'prod_002',
-                                sku: 'VV002',
-                                name: 'VeeVee Refill Pack',
-                                description: 'แผ่นแปะเติม 24 ชิ้น',
-                                price: 99,
-                                stock: 30,
-                                min_stock: 5,
-                                unit: 'แพ็ค',
-                                category: 'สุขภาพ',
-                                active: true
-                            },
-                            {
-                                id: 'prod_003',
-                                sku: 'VV003',
-                                name: 'VeeVee Family Set',
-                                description: 'ชุดครอบครัว 5 ซอง',
-                                price: 499,
-                                stock: 15,
-                                min_stock: 3,
-                                unit: 'ชุด',
-                                category: 'แพ็คเกจ',
-                                active: true
-                            }
-                        ];
-                    }
-                    console.log('✅ Products loaded:', this.products.length);
-                } catch (error) {
-                    console.error('❌ Failed to load products:', error);
-                }
-            },
-
-            // ฟังก์ชันอื่นๆ ตามโค้ดเดิม (ไม่เปลี่ยน)
-            async refreshOrders() { this.orders = []; },
-            async refreshContacts() { this.contacts = []; },
-            async refreshPaymentSlips() { this.paymentSlips = []; },
-            async refreshPOSSales() { this.posSales = []; },
-            
-            // POS Functions
-            filterProducts() {
-                if (!this.posSearch) {
-                    this.filteredProducts = this.products.filter(p => p.active && p.stock > 0);
-                } else {
-                    this.filteredProducts = this.products.filter(p => 
-                        p.active && 
-                        p.stock > 0 && 
-                        (p.name.toLowerCase().includes(this.posSearch.toLowerCase()) || 
-                         p.sku.toLowerCase().includes(this.posSearch.toLowerCase()))
-                    );
-                }
-            },
-
-            addToCart(product) {
-                if (product.stock <= 0) {
-                    alert('สินค้าหมดสต็อก');
-                    return;
-                }
-                
-                const existingItem = this.posCart.find(item => item.id === product.id);
-                
-                if (existingItem) {
-                    if (existingItem.quantity < product.stock) {
-                        existingItem.quantity++;
-                    } else {
-                        alert('จำนวนเกินสต็อกที่มี');
-                    }
-                } else {
-                    this.posCart.push({
-                        id: product.id,
-                        name: product.name,
-                        price: product.price,
-                        quantity: 1,
-                        stock: product.stock,
-                        unit: product.unit
-                    });
-                }
-            },
-
-            updateCartQuantity(index, change) {
-                const item = this.posCart[index];
-                const newQuantity = item.quantity + change;
-                
-                if (newQuantity <= 0) {
-                    this.posCart.splice(index, 1);
-                } else if (newQuantity <= item.stock) {
-                    item.quantity = newQuantity;
-                } else {
-                    alert('จำนวนเกินสต็อกที่มี');
-                }
-            },
-
-            clearPOSCart() {
-                this.posCart = [];
-            },
-
-            async processPOSSale() {
-                if (this.posCart.length === 0) return;
-                
-                this.posProcessing = true;
-                
-                try {
-                    const saleData = {
-                        sale_id: 'POS_' + Date.now(),
-                        items: this.posCart.map(item => ({
-                            product_id: item.id,
-                            name: item.name,
-                            price: item.price,
-                            quantity: item.quantity,
-                            subtotal: item.price * item.quantity
-                        })),
-                        total: this.posTotal,
-                        payment_method: this.posPaymentMethod,
-                        customer_name: this.posCustomerName || 'ลูกค้าทั่วไป',
-                        timestamp: new Date().toISOString(),
-                        type: 'pos_sale'
-                    };
-                    
-                    // Save to Firebase
-                    if (window.firebaseAddDoc && window.firebaseCollection && window.firebaseDb) {
-                        const salesRef = window.firebaseCollection(window.firebaseDb, 'pos_sales');
-                        await window.firebaseAddDoc(salesRef, saleData);
-                        console.log('✅ POS sale saved to Firebase');
-                    }
-                    
-                    // Update stock locally
-                    for (const item of this.posCart) {
-                        const product = this.products.find(p => p.id === item.id);
-                        if (product) {
-                            product.stock -= item.quantity;
-                        }
-                    }
-                    
-                    // Clear cart
-                    this.clearPOSCart();
-                    this.posCustomerName = '';
-                    await this.refreshPOSSales();
-                    
-                    alert('ขายสำเร็จ! บิลเลขที่: ' + saleData.sale_id);
-                    
-                } catch (error) {
-                    console.error('❌ POS Sale failed:', error);
-                    alert('เกิดข้อผิดพลาดในการขาย: ' + error.message);
-                } finally {
-                    this.posProcessing = false;
-                }
-            },
-
-            // Utility functions
-            getTotalStock() {
-                return this.products.reduce((sum, product) => sum + product.stock, 0);
-            },
-
-            getInventoryValue() {
-                return this.products.reduce((sum, product) => sum + (product.stock * product.price), 0);
-            },
-
-            generateSalesReport() {
-                // Basic implementation
-                this.reportData = {
-                    totalSales: this.todaySales,
-                    totalOrders: this.todayOrders,
-                    averageOrderValue: this.todayOrders > 0 ? this.todaySales / this.todayOrders : 0,
-                    totalItems: 0,
-                    topProducts: []
-                };
-            },
-
-            openGoogleSheets() {
-                if (this.SHEETS_URL) {
-                    window.open(this.SHEETS_URL, '_blank');
-                }
-            },
-
-            formatDate(timestamp) {
-                if (!timestamp) return 'N/A';
-                const date = new Date(timestamp.seconds ? timestamp.seconds * 1000 : timestamp);
-                return date.toLocaleDateString('th-TH') + ' ' + date.toLocaleTimeString('th-TH');
-            }
+            alert('เกิดข้อผิดพลาดในการเชื่อมต่อ Firebase กรุณารีเฟรชหน้าเว็บ');
         }
-    }
-</script>
-   
+    </script>
 
     <style>
         .fade-in {
@@ -839,10 +420,10 @@
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-bold text-gray-900">จัดการสินค้า</h2>
                     <div class="flex space-x-3">
-                        <button @click="showAddProductModal = true" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                        <button @click="addNewProduct()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
                             <i class="fas fa-plus mr-2"></i>เพิ่มสินค้า
                         </button>
-                        <button @click="refreshProducts()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        <button @click="refreshAllData()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
                             <i class="fas fa-sync-alt mr-2"></i>รีเฟรช
                         </button>
                     </div>
@@ -900,11 +481,11 @@
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-bold text-gray-900">คลังสินค้า</h2>
                     <div class="flex space-x-3">
-                        <button @click="showStockAdjustModal = true" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                            <i class="fas fa-edit mr-2"></i>ปรับสต็อก
+                        <button @click="bulkStockAdjustment()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-edit mr-2"></i>ปรับสต็อกแบบ Bulk
                         </button>
-                        <button @click="generateStockReport()" class="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors">
-                            <i class="fas fa-file-export mr-2"></i>ส่งออกรายงาน
+                        <button @click="generateInventoryReport()" class="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors">
+                            <i class="fas fa-file-export mr-2"></i>ส่งออกรายงานคลัง
                         </button>
                     </div>
                 </div>
@@ -1043,7 +624,10 @@
                             <i class="fas fa-search mr-2"></i>ค้นหา
                         </button>
                         <button @click="exportReport()" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors">
-                            <i class="fas fa-download mr-2"></i>ส่งออก
+                            <i class="fas fa-download mr-2"></i>ส่งออกรายงาน
+                        </button>
+                        <button @click="generateAdvancedReport()" class="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors">
+                            <i class="fas fa-chart-pie mr-2"></i>รายงานขั้นสูง
                         </button>
                     </div>
                 </div>
@@ -1224,113 +808,16 @@
                                 <p class="text-lg font-bold text-green-600" x-text="'฿' + slip.amount?.toLocaleString()"></p>
                                 <p class="text-sm text-gray-500" x-text="formatDate(slip.uploaded_at || slip.timestamp)"></p>
                                 <div class="mt-3 flex space-x-2">
-                                    <button class="flex-1 bg-green-500 text-white py-2 px-3 rounded text-sm hover:bg-green-600">
-                                        อนุมัติ
+                                    <button @click="approvePaymentSlip(slip)" class="flex-1 bg-green-500 text-white py-2 px-3 rounded text-sm hover:bg-green-600 transition-colors">
+                                        ✅ อนุมัติ
                                     </button>
-                                    <button class="flex-1 bg-red-500 text-white py-2 px-3 rounded text-sm hover:bg-red-600">
-                                        ปฏิเสธ
+                                    <button @click="rejectPaymentSlip(slip)" class="flex-1 bg-red-500 text-white py-2 px-3 rounded text-sm hover:bg-red-600 transition-colors">
+                                        ❌ ปฏิเสธ
                                     </button>
                                 </div>
                             </div>
                         </div>
                     </template>
-                </div>
-            </div>
-
-            <!-- Stats Tab (Legacy - now integrated into Reports) -->
-            <div x-show="currentTab === 'stats' && !loading">
-                <h2 class="text-xl font-bold text-gray-900 mb-6">สถิติรวม</h2>
-                
-                <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-                    <div class="bg-white p-6 rounded-lg shadow-sm">
-                        <div class="flex items-center">
-                            <div class="p-2 bg-blue-100 rounded-lg">
-                                <i class="fas fa-shopping-cart text-blue-600"></i>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-sm text-gray-600">คำสั่งซื้อออนไลน์</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="orders.length"></p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white p-6 rounded-lg shadow-sm">
-                        <div class="flex items-center">
-                            <div class="p-2 bg-green-100 rounded-lg">
-                                <i class="fas fa-cash-register text-green-600"></i>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-sm text-gray-600">ขายหน้าร้าน (POS)</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="posSales.length"></p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white p-6 rounded-lg shadow-sm">
-                        <div class="flex items-center">
-                            <div class="p-2 bg-yellow-100 rounded-lg">
-                                <i class="fas fa-receipt text-yellow-600"></i>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-sm text-gray-600">สลิปรอตรวจ</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="paymentSlips.length"></p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white p-6 rounded-lg shadow-sm">
-                        <div class="flex items-center">
-                            <div class="p-2 bg-purple-100 rounded-lg">
-                                <i class="fas fa-envelope text-purple-600"></i>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-sm text-gray-600">ข้อความติดต่อ</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="contacts.length"></p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Revenue Breakdown -->
-                <div class="grid gap-6 md:grid-cols-2 mb-8">
-                    <div class="bg-white p-6 rounded-lg shadow-sm">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">รายได้ออนไลน์</h3>
-                        <div class="text-3xl font-bold text-green-600" x-text="'฿' + totalRevenue.toLocaleString()"></div>
-                        <p class="text-gray-500">จากคำสั่งซื้อออนไลน์</p>
-                    </div>
-                    
-                    <div class="bg-white p-6 rounded-lg shadow-sm">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">รายได้หน้าร้าน</h3>
-                        <div class="text-3xl font-bold text-green-600" 
-                             x-text="'฿' + posSales.reduce((sum, sale) => sum + (sale.total || 0), 0).toLocaleString()"></div>
-                        <p class="text-gray-500">จากการขาย POS</p>
-                    </div>
-                </div>
-                
-                <!-- Quick Actions -->
-                <div class="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">ดำเนินการด่วน</h3>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <button @click="currentTab = 'pos'" class="p-4 border border-green-500 text-green-600 rounded-lg hover:bg-green-50 transition-colors">
-                            <i class="fas fa-cash-register text-2xl mb-2"></i>
-                            <div class="font-semibold">เปิด POS</div>
-                        </button>
-                        
-                        <button @click="currentTab = 'products'" class="p-4 border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
-                            <i class="fas fa-box text-2xl mb-2"></i>
-                            <div class="font-semibold">จัดการสินค้า</div>
-                        </button>
-                        
-                        <button @click="currentTab = 'inventory'" class="p-4 border border-yellow-500 text-yellow-600 rounded-lg hover:bg-yellow-50 transition-colors">
-                            <i class="fas fa-warehouse text-2xl mb-2"></i>
-                            <div class="font-semibold">ดูคลังสินค้า</div>
-                        </button>
-                        
-                        <button @click="currentTab = 'reports'" class="p-4 border border-purple-500 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors">
-                            <i class="fas fa-chart-line text-2xl mb-2"></i>
-                            <div class="font-semibold">ออกรายงาน</div>
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -1342,7 +829,6 @@
             return {
                 // Admin Config
                 ADMIN_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwoEN86QTpuRxDckf8mQiga9pkn-RJBM0z00nqywbPUbeeIR34XX6JPHQeVcuLoWKAeUA/exec',
-                // 📊 Google Sheets Info
                 SPREADSHEET_ID: '19jd3hyPBVrwvbqv28uUv47GjoPYcfVv-_1XcZH548I4',
                 SHEETS_URL: 'https://docs.google.com/spreadsheets/d/19jd3hyPBVrwvbqv28uUv47GjoPYcfVv-_1XcZH548I4/edit',
                 
@@ -1350,14 +836,14 @@
                 isAuthenticated: false,
                 userEmail: '',
                 loginForm: {
-                    email: '',
+                    email: 'admin@veevee.com',
                     password: ''
                 },
                 loginLoading: false,
                 loginError: '',
                 
                 // Navigation
-                currentTab: 'pos', // เริ่มต้นที่ POS
+                currentTab: 'pos',
                 loading: false,
                 
                 // Data
@@ -1375,11 +861,6 @@
                 posCustomerName: '',
                 posProcessing: false,
                 
-                // Product Management
-                showAddProductModal: false,
-                showStockAdjustModal: false,
-                editingProduct: null,
-                
                 // Reports
                 reportDateFrom: new Date().toISOString().split('T')[0],
                 reportDateTo: new Date().toISOString().split('T')[0],
@@ -1391,7 +872,7 @@
                     topProducts: []
                 },
                 
-                // Computed
+                // Computed properties
                 get totalRevenue() {
                     return this.orders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
                 },
@@ -1421,40 +902,73 @@
                 get lowStockProducts() {
                     return this.products.filter(product => product.stock <= (product.min_stock || 0));
                 },
-                
+
+                // ✅ ปรับปรุง init function
                 async init() {
                     console.log('🛡️ Admin Panel initialized');
                     
-                    // Check Admin Script URL
-                    if (!this.ADMIN_SCRIPT_URL && window.location.hostname === 'localhost') {
-                        console.warn('⚠️ ADMIN_SCRIPT_URL not configured!');
-                        console.warn('📋 Steps to configure:');
-                        console.warn('1. Create new Apps Script project: "VeeVee_Admin"');
-                        console.warn('2. Deploy as Web App with Admin permissions');
-                        console.warn('3. Update ADMIN_SCRIPT_URL in this file');
-                    }
+                    // ✅ รอให้ Firebase โหลดเสร็จก่อน
+                    let retryCount = 0;
+                    const maxRetries = 10;
                     
-                    // Check authentication state
-                    window.firebaseOnAuthStateChanged(window.firebaseAuth, (user) => {
-                        if (user) {
-                            this.isAuthenticated = true;
-                            this.userEmail = user.email;
-                            this.loadAllData();
-                            
-                            // Initialize reports with today's date
-                            this.generateSalesReport();
-                        } else {
-                            this.isAuthenticated = false;
-                            this.userEmail = '';
+                    const waitForFirebase = () => {
+                        return new Promise((resolve) => {
+                            const checkFirebase = () => {
+                                if (window.firebaseAuth && window.firebaseOnAuthStateChanged) {
+                                    console.log('✅ Firebase ready!');
+                                    resolve(true);
+                                } else if (retryCount < maxRetries) {
+                                    retryCount++;
+                                    console.log(`⏳ Waiting for Firebase... (${retryCount}/${maxRetries})`);
+                                    setTimeout(checkFirebase, 500);
+                                } else {
+                                    console.warn('⚠️ Firebase timeout, continuing without auth');
+                                    resolve(false);
+                                }
+                            };
+                            checkFirebase();
+                        });
+                    };
+
+                    const firebaseReady = await waitForFirebase();
+                    
+                    if (firebaseReady) {
+                        // ✅ Firebase พร้อม - ตั้งค่า auth listener
+                        try {
+                            window.firebaseOnAuthStateChanged(window.firebaseAuth, (user) => {
+                                if (user) {
+                                    console.log('✅ User authenticated:', user.email);
+                                    this.isAuthenticated = true;
+                                    this.userEmail = user.email;
+                                    this.loadAllData();
+                                    this.generateSalesReport();
+                                } else {
+                                    console.log('🚪 User not authenticated');
+                                    this.isAuthenticated = false;
+                                    this.userEmail = '';
+                                }
+                            });
+                        } catch (error) {
+                            console.error('❌ Auth listener error:', error);
                         }
-                    });
+                    } else {
+                        // ✅ Firebase ไม่พร้อม - ใช้ fallback
+                        console.warn('⚠️ Running in offline mode');
+                    }
                 },
                 
+                // ✅ ปรับปรุง login function
                 async login() {
                     this.loginLoading = true;
                     this.loginError = '';
                     
                     try {
+                        console.log('🔐 Attempting login...');
+                        
+                        if (!window.firebaseSignInWithEmailAndPassword || !window.firebaseAuth) {
+                            throw new Error('Firebase Authentication ไม่พร้อมใช้งาน');
+                        }
+                        
                         const userCredential = await window.firebaseSignInWithEmailAndPassword(
                             window.firebaseAuth,
                             this.loginForm.email,
@@ -1463,26 +977,53 @@
                         
                         console.log('✅ Admin logged in:', userCredential.user.email);
                         
+                        // ✅ อัปเดต state ทันที (ไม่รอ onAuthStateChanged)
+                        this.isAuthenticated = true;
+                        this.userEmail = userCredential.user.email;
+                        
+                        // โหลดข้อมูล
+                        setTimeout(() => {
+                            this.loadAllData();
+                            this.generateSalesReport();
+                        }, 500);
+                        
                     } catch (error) {
                         console.error('❌ Login failed:', error);
-                        this.loginError = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+                        
+                        if (error.code === 'auth/user-not-found') {
+                            this.loginError = 'ไม่พบผู้ใช้นี้ในระบบ';
+                        } else if (error.code === 'auth/wrong-password') {
+                            this.loginError = 'รหัสผ่านไม่ถูกต้อง';
+                        } else if (error.code === 'auth/invalid-email') {
+                            this.loginError = 'รูปแบบอีเมลไม่ถูกต้อง';
+                        } else {
+                            this.loginError = 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่';
+                        }
                     } finally {
                         this.loginLoading = false;
                     }
                 },
                 
+                // ✅ ฟังก์ชันอื่นๆ เหมือนเดิม...
                 async logout() {
                     try {
-                        await window.firebaseSignOut(window.firebaseAuth);
+                        if (window.firebaseSignOut && window.firebaseAuth) {
+                            await window.firebaseSignOut(window.firebaseAuth);
+                        }
+                        this.isAuthenticated = false;
+                        this.userEmail = '';
                         console.log('✅ Admin logged out');
                     } catch (error) {
                         console.error('❌ Logout failed:', error);
+                        // Force logout
+                        this.isAuthenticated = false;
+                        this.userEmail = '';
                     }
                 },
-                
+
+                // ✅ รวมฟังก์ชันที่เหลือ...
                 async loadAllData() {
                     this.loading = true;
-                    
                     try {
                         await Promise.all([
                             this.refreshOrders(),
@@ -1491,71 +1032,17 @@
                             this.refreshProducts(),
                             this.refreshPOSSales()
                         ]);
-                        
-                        // Initialize filtered products for POS
                         this.filterProducts();
-                        
                     } catch (error) {
                         console.error('❌ Failed to load data:', error);
                     } finally {
                         this.loading = false;
                     }
                 },
-                
-                async refreshOrders() {
-                    try {
-                        const ordersRef = window.firebaseCollection(window.firebaseDb, 'orders');
-                        const q = window.firebaseQuery(ordersRef, window.firebaseOrderBy('timestamp', 'desc'));
-                        const querySnapshot = await window.firebaseGetDocs(q);
-                        
-                        this.orders = [];
-                        querySnapshot.forEach((doc) => {
-                            this.orders.push({ id: doc.id, ...doc.data() });
-                        });
-                        
-                        console.log('✅ Orders loaded:', this.orders.length);
-                    } catch (error) {
-                        console.error('❌ Failed to load orders:', error);
-                    }
-                },
-                
-                async refreshContacts() {
-                    try {
-                        const contactsRef = window.firebaseCollection(window.firebaseDb, 'contacts');
-                        const q = window.firebaseQuery(contactsRef, window.firebaseOrderBy('timestamp', 'desc'));
-                        const querySnapshot = await window.firebaseGetDocs(q);
-                        
-                        this.contacts = [];
-                        querySnapshot.forEach((doc) => {
-                            this.contacts.push({ id: doc.id, ...doc.data() });
-                        });
-                        
-                        console.log('✅ Contacts loaded:', this.contacts.length);
-                    } catch (error) {
-                        console.error('❌ Failed to load contacts:', error);
-                    }
-                },
-                
-                async refreshPaymentSlips() {
-                    try {
-                        const slipsRef = window.firebaseCollection(window.firebaseDb, 'payment_slips');
-                        const q = window.firebaseQuery(slipsRef, window.firebaseOrderBy('timestamp', 'desc'));
-                        const querySnapshot = await window.firebaseGetDocs(q);
-                        
-                        this.paymentSlips = [];
-                        querySnapshot.forEach((doc) => {
-                            this.paymentSlips.push({ id: doc.id, ...doc.data() });
-                        });
-                        
-                        console.log('✅ Payment slips loaded:', this.paymentSlips.length);
-                    } catch (error) {
-                        console.error('❌ Failed to load payment slips:', error);
-                    }
-                },
-                
+
+                // ... ส่วนอื่นๆ ตามโค้ดเดิม
                 async refreshProducts() {
                     try {
-                        // สร้างสินค้าตัวอย่างถ้าไม่มี
                         if (this.products.length === 0) {
                             this.products = [
                                 {
@@ -1596,14 +1083,62 @@
                                 }
                             ];
                         }
-                        
                         console.log('✅ Products loaded:', this.products.length);
                     } catch (error) {
                         console.error('❌ Failed to load products:', error);
                     }
                 },
-                
-                async refreshPOSSales() {
+
+                // ฟังก์ชันอื่นๆ ตามโค้ดเดิม (ไม่เปลี่ยน)
+                async refreshOrders() { 
+                    try {
+                        const ordersRef = window.firebaseCollection(window.firebaseDb, 'orders');
+                        const q = window.firebaseQuery(ordersRef, window.firebaseOrderBy('timestamp', 'desc'));
+                        const querySnapshot = await window.firebaseGetDocs(q);
+                        
+                        this.orders = [];
+                        querySnapshot.forEach((doc) => {
+                            this.orders.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        console.log('✅ Orders loaded:', this.orders.length);
+                    } catch (error) {
+                        console.error('❌ Failed to load orders:', error);
+                    }
+                },
+                async refreshContacts() { 
+                    try {
+                        const contactsRef = window.firebaseCollection(window.firebaseDb, 'contacts');
+                        const q = window.firebaseQuery(contactsRef, window.firebaseOrderBy('timestamp', 'desc'));
+                        const querySnapshot = await window.firebaseGetDocs(q);
+                        
+                        this.contacts = [];
+                        querySnapshot.forEach((doc) => {
+                            this.contacts.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        console.log('✅ Contacts loaded:', this.contacts.length);
+                    } catch (error) {
+                        console.error('❌ Failed to load contacts:', error);
+                    }
+                },
+                async refreshPaymentSlips() { 
+                    try {
+                        const slipsRef = window.firebaseCollection(window.firebaseDb, 'payment_slips');
+                        const q = window.firebaseQuery(slipsRef, window.firebaseOrderBy('timestamp', 'desc'));
+                        const querySnapshot = await window.firebaseGetDocs(q);
+                        
+                        this.paymentSlips = [];
+                        querySnapshot.forEach((doc) => {
+                            this.paymentSlips.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        console.log('✅ Payment slips loaded:', this.paymentSlips.length);
+                    } catch (error) {
+                        console.error('❌ Failed to load payment slips:', error);
+                    }
+                },
+                async refreshPOSSales() { 
                     try {
                         const salesRef = window.firebaseCollection(window.firebaseDb, 'pos_sales');
                         const q = window.firebaseQuery(salesRef, window.firebaseOrderBy('timestamp', 'desc'));
@@ -1620,7 +1155,526 @@
                     }
                 },
                 
-                // POS Methods
+                // ================================
+                // 💰 PAYMENT SLIPS FUNCTIONS
+                // ================================
+
+                async approvePaymentSlip(slip) {
+                    try {
+                        console.log('✅ Approving payment slip:', slip.id);
+                        
+                        const confirmation = confirm(`อนุมัติการโอนเงิน\nจำนวน: ฿${slip.amount?.toLocaleString()}\nรหัสคำสั่งซื้อ: ${slip.order_number}\n\nยืนยันการอนุมัติ?`);
+                        
+                        if (!confirmation) return;
+                        
+                        // ✅ อัปเดตใน Firebase
+                        if (window.firebaseDoc && window.firebaseUpdateDoc && window.firebaseDb) {
+                            try {
+                                const slipRef = window.firebaseDoc(window.firebaseDb, 'payment_slips', slip.id);
+                                await window.firebaseUpdateDoc(slipRef, {
+                                    status: 'approved',
+                                    approved_at: new Date().toISOString(),
+                                    approved_by: this.userEmail
+                                });
+                                console.log('🔥 Slip approved in Firebase');
+                            } catch (firebaseError) {
+                                console.warn('⚠️ Firebase update failed:', firebaseError);
+                            }
+                        }
+                        
+                        // ✅ ส่งไป Apps Script
+                        const adminResult = await this.sendToAdminScript({
+                            action: 'approve_slip',
+                            slip_id: slip.id,
+                            order_number: slip.order_number,
+                            amount: slip.amount,
+                            admin_notes: 'อนุมัติผ่านระบบ Admin'
+                        });
+                        
+                        if (adminResult.success) {
+                            console.log('📧 Approval sent to admin system');
+                        }
+                        
+                        // ✅ อัปเดต local state
+                        const slipIndex = this.paymentSlips.findIndex(s => s.id === slip.id);
+                        if (slipIndex !== -1) {
+                            this.paymentSlips[slipIndex].status = 'approved';
+                            this.paymentSlips[slipIndex].approved_at = new Date().toISOString();
+                            this.paymentSlips[slipIndex].approved_by = this.userEmail;
+                        }
+                        
+                        alert('✅ อนุมัติสลิปเรียบร้อยแล้ว');
+                        
+                    } catch (error) {
+                        console.error('❌ Failed to approve slip:', error);
+                        alert('เกิดข้อผิดพลาดในการอนุมัติ: ' + error.message);
+                    }
+                },
+
+                async rejectPaymentSlip(slip) {
+                    try {
+                        console.log('❌ Rejecting payment slip:', slip.id);
+                        
+                        const reason = prompt(`ปฏิเสธการโอนเงิน\nจำนวน: ฿${slip.amount?.toLocaleString()}\nรหัสคำสั่งซื้อ: ${slip.order_number}\n\nกรุณาระบุเหตุผล:`);
+                        
+                        if (!reason) return;
+                        
+                        // ✅ อัปเดตใน Firebase
+                        if (window.firebaseDoc && window.firebaseUpdateDoc && window.firebaseDb) {
+                            try {
+                                const slipRef = window.firebaseDoc(window.firebaseDb, 'payment_slips', slip.id);
+                                await window.firebaseUpdateDoc(slipRef, {
+                                    status: 'rejected',
+                                    rejected_at: new Date().toISOString(),
+                                    rejected_by: this.userEmail,
+                                    rejection_reason: reason
+                                });
+                                console.log('🔥 Slip rejected in Firebase');
+                            } catch (firebaseError) {
+                                console.warn('⚠️ Firebase update failed:', firebaseError);
+                            }
+                        }
+                        
+                        // ✅ ส่งไป Apps Script
+                        const adminResult = await this.sendToAdminScript({
+                            action: 'reject_slip',
+                            slip_id: slip.id,
+                            order_number: slip.order_number,
+                            amount: slip.amount,
+                            rejection_reason: reason
+                        });
+                        
+                        if (adminResult.success) {
+                            console.log('📧 Rejection sent to admin system');
+                        }
+                        
+                        // ✅ อัปเดต local state
+                        const slipIndex = this.paymentSlips.findIndex(s => s.id === slip.id);
+                        if (slipIndex !== -1) {
+                            this.paymentSlips[slipIndex].status = 'rejected';
+                            this.paymentSlips[slipIndex].rejected_at = new Date().toISOString();
+                            this.paymentSlips[slipIndex].rejected_by = this.userEmail;
+                            this.paymentSlips[slipIndex].rejection_reason = reason;
+                        }
+                        
+                        alert('❌ ปฏิเสธสลิปเรียบร้อยแล้ว');
+                        
+                    } catch (error) {
+                        console.error('❌ Failed to reject slip:', error);
+                        alert('เกิดข้อผิดพลาดในการปฏิเสธ: ' + error.message);
+                    }
+                },
+
+                // ================================
+                // 📦 PRODUCT MANAGEMENT FUNCTIONS
+                // ================================
+
+                addNewProduct() {
+                    const name = prompt('ชื่อสินค้า:');
+                    if (!name) return;
+                    
+                    const price = parseFloat(prompt('ราคา (บาท):') || '0');
+                    if (price <= 0) {
+                        alert('กรุณาใส่ราคาที่ถูกต้อง');
+                        return;
+                    }
+                    
+                    const stock = parseInt(prompt('จำนวนสต็อกเริ่มต้น:') || '0');
+                    const minStock = parseInt(prompt('สต็อกขั้นต่ำ:') || '5');
+                    const category = prompt('หมวดหมู่:') || 'ทั่วไป';
+                    const unit = prompt('หน่วยสินค้า (เช่น ชิ้น, ซอง, แพ็ค):') || 'ชิ้น';
+                    
+                    const newProduct = {
+                        id: 'prod_' + Date.now(),
+                        sku: 'VV' + Date.now().toString().slice(-6),
+                        name: name,
+                        description: '',
+                        price: price,
+                        stock: stock,
+                        min_stock: minStock,
+                        unit: unit,
+                        category: category,
+                        active: true,
+                        created_at: new Date().toISOString()
+                    };
+                    
+                    this.products.push(newProduct);
+                    this.filterProducts();
+                    
+                    console.log('✅ Product added:', newProduct);
+                    alert('เพิ่มสินค้าเรียบร้อยแล้ว: ' + name);
+                },
+
+                editProduct(product) {
+                    const newName = prompt('ชื่อสินค้า:', product.name);
+                    if (!newName) return;
+                    
+                    const newPrice = parseFloat(prompt('ราคา (บาท):', product.price) || product.price);
+                    const newMinStock = parseInt(prompt('สต็อกขั้นต่ำ:', product.min_stock) || product.min_stock);
+                    const newCategory = prompt('หมวดหมู่:', product.category) || product.category;
+                    
+                    product.name = newName;
+                    product.price = newPrice;
+                    product.min_stock = newMinStock;
+                    product.category = newCategory;
+                    product.updated_at = new Date().toISOString();
+                    
+                    this.filterProducts();
+                    
+                    console.log('✅ Product updated:', product);
+                    alert('แก้ไขสินค้าเรียบร้อยแล้ว');
+                },
+
+                toggleProductStatus(product) {
+                    const action = product.active ? 'หยุดใช้งาน' : 'เปิดใช้งาน';
+                    const confirmation = confirm(`${action} สินค้า "${product.name}"?`);
+                    
+                    if (confirmation) {
+                        product.active = !product.active;
+                        product.updated_at = new Date().toISOString();
+                        
+                        this.filterProducts();
+                        
+                        console.log('✅ Product status changed:', product.name, 'Active:', product.active);
+                        alert(`${action} สินค้าเรียบร้อยแล้ว`);
+                    }
+                },
+
+                // ================================
+                // 📊 STOCK MANAGEMENT FUNCTIONS
+                // ================================
+
+                adjustStock(product) {
+                    const currentStock = product.stock;
+                    const newStock = prompt(
+                        `ปรับสต็อก: ${product.name}\n` +
+                        `สต็อกปัจจุบัน: ${currentStock} ${product.unit}\n` +
+                        `สต็อกขั้นต่ำ: ${product.min_stock} ${product.unit}\n\n` +
+                        `กรุณาใส่จำนวนสต็อกใหม่:`,
+                        currentStock
+                    );
+                    
+                    if (newStock === null) return;
+                    
+                    const stockNumber = parseInt(newStock);
+                    if (isNaN(stockNumber) || stockNumber < 0) {
+                        alert('กรุณาใส่จำนวนที่ถูกต้อง');
+                        return;
+                    }
+                    
+                    const adjustment = stockNumber - currentStock;
+                    const reason = prompt('เหตุผลในการปรับสต็อก:', adjustment > 0 ? 'เติมสต็อก' : 'ปรับลดสต็อก');
+                    
+                    if (!reason) return;
+                    
+                    product.stock = stockNumber;
+                    product.last_stock_update = new Date().toISOString();
+                    
+                    // บันทึก log
+                    const logEntry = {
+                        product_id: product.id,
+                        product_name: product.name,
+                        old_stock: currentStock,
+                        new_stock: stockNumber,
+                        adjustment: adjustment,
+                        reason: reason,
+                        admin: this.userEmail,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    console.log('📦 Stock adjusted:', logEntry);
+                    
+                    // แจ้งเตือนสต็อกต่ำ
+                    if (stockNumber <= product.min_stock && stockNumber > 0) {
+                        alert(`⚠️ สต็อกต่ำ!\n${product.name} เหลือ ${stockNumber} ${product.unit} (ขั้นต่ำ ${product.min_stock} ${product.unit})`);
+                    }
+                    
+                    alert('ปรับสต็อกเรียบร้อยแล้ว');
+                },
+
+                bulkStockAdjustment() {
+                    const csvData = prompt(
+                        'การปรับสต็อกแบบ Bulk\n\n' +
+                        'รูปแบบ: SKU,จำนวนใหม่\n' +
+                        'ตัวอย่าง:\n' +
+                        'VV001,100\n' +
+                        'VV002,50\n' +
+                        'VV003,25\n\n' +
+                        'กรุณาใส่ข้อมูล:'
+                    );
+                    
+                    if (!csvData) return;
+                    
+                    const lines = csvData.trim().split('\n');
+                    let updated = 0;
+                    let errors = [];
+                    
+                    for (const line of lines) {
+                        const [sku, stockStr] = line.split(',').map(s => s.trim());
+                        const newStock = parseInt(stockStr);
+                        
+                        if (!sku || isNaN(newStock) || newStock < 0) {
+                            errors.push(`รูปแบบไม่ถูกต้อง: ${line}`);
+                            continue;
+                        }
+                        
+                        const product = this.products.find(p => p.sku === sku);
+                        if (!product) {
+                            errors.push(`ไม่พบสินค้า SKU: ${sku}`);
+                            continue;
+                        }
+                        
+                        product.stock = newStock;
+                        product.last_stock_update = new Date().toISOString();
+                        updated++;
+                    }
+                    
+                    let message = `ปรับสต็อกเรียบร้อย ${updated} รายการ`;
+                    if (errors.length > 0) {
+                        message += `\n\nข้อผิดพลาด:\n${errors.join('\n')}`;
+                    }
+                    
+                    alert(message);
+                    console.log('📦 Bulk stock update completed:', { updated, errors });
+                },
+
+                // ================================
+                // 📊 REPORTS FUNCTIONS
+                // ================================
+
+                async exportReport() {
+                    try {
+                        console.log('📊 Exporting sales report...');
+                        
+                        const reportData = this.reportData;
+                        const dateRange = `${this.reportDateFrom} ถึง ${this.reportDateTo}`;
+                        
+                        // สร้างข้อมูล CSV
+                        let csvContent = 'รายงานการขาย VeeVee\n';
+                        csvContent += `ช่วงเวลา: ${dateRange}\n`;
+                        csvContent += `สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}\n`;
+                        csvContent += `ผู้สร้าง: ${this.userEmail}\n\n`;
+                        
+                        csvContent += 'สรุปยอดขาย\n';
+                        csvContent += `ยอดขายรวม,${reportData.totalSales.toLocaleString()} บาท\n`;
+                        csvContent += `จำนวนบิล,${reportData.totalOrders} บิล\n`;
+                        csvContent += `ยอดเฉลี่ยต่อบิล,${reportData.averageOrderValue.toFixed(2)} บาท\n`;
+                        csvContent += `สินค้าขายได้,${reportData.totalItems} ชิ้น\n\n`;
+                        
+                        if (reportData.topProducts.length > 0) {
+                            csvContent += 'สินค้าขายดี\n';
+                            csvContent += 'อันดับ,ชื่อสินค้า,จำนวนขาย,ยอดขาย\n';
+                            reportData.topProducts.forEach((item, index) => {
+                                csvContent += `${index + 1},${item.product_name},${item.quantity} ${item.unit},${item.total_sales.toLocaleString()} บาท\n`;
+                            });
+                        }
+                        
+                        // ดาวน์โหลดไฟล์
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const link = document.createElement('a');
+                        const url = URL.createObjectURL(blob);
+                        link.setAttribute('href', url);
+                        link.setAttribute('download', `VeeVee-Sales-Report-${this.reportDateFrom}-${this.reportDateTo}.csv`);
+                        link.style.visibility = 'hidden';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        console.log('✅ Report exported successfully');
+                        alert('ส่งออกรายงานเรียบร้อยแล้ว');
+                        
+                    } catch (error) {
+                        console.error('❌ Export failed:', error);
+                        alert('เกิดข้อผิดพลาดในการส่งออกรายงาน: ' + error.message);
+                    }
+                },
+
+                async generateAdvancedReport() {
+                    const reportType = prompt(
+                        'เลือกประเภทรายงาน:\n\n' +
+                        '1 = รายงานการขายรายวัน\n' +
+                        '2 = รายงานสต็อกสินค้า\n' +
+                        '3 = รายงานลูกค้า\n' +
+                        '4 = รายงานกำไร-ขาดทุน\n\n' +
+                        'กรุณาใส่หมายเลข (1-4):',
+                        '1'
+                    );
+                    
+                    switch (reportType) {
+                        case '1':
+                            this.generateDailySalesReport();
+                            break;
+                        case '2':
+                            this.generateInventoryReport();
+                            break;
+                        case '3':
+                            alert('ฟีเจอร์รายงานลูกค้าจะพัฒนาในเวอร์ชันต่อไป');
+                            break;
+                        case '4':
+                            alert('ฟีเจอร์รายงานกำไร-ขาดทุนจะพัฒนาในเวอร์ชันต่อไป');
+                            break;
+                        default:
+                            alert('กรุณาเลือกประเภทรายงานที่ถูกต้อง');
+                    }
+                },
+
+                generateInventoryReport() {
+                    console.log('📦 Generating inventory report...');
+                    
+                    let csvContent = 'รายงานคลังสินค้า VeeVee\n';
+                    csvContent += `สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}\n`;
+                    csvContent += `ผู้สร้าง: ${this.userEmail}\n\n`;
+                    
+                    csvContent += 'สรุปคลังสินค้า\n';
+                    csvContent += `จำนวนสินค้าทั้งหมด,${this.products.length} รายการ\n`;
+                    csvContent += `สต็อกรวม,${this.getTotalStock()} ชิ้น\n`;
+                    csvContent += `มูลค่าสต็อก,${this.getInventoryValue().toLocaleString()} บาท\n`;
+                    csvContent += `สินค้าสต็อกต่ำ,${this.lowStockProducts.length} รายการ\n\n`;
+                    
+                    csvContent += 'รายละเอียดสินค้า\n';
+                    csvContent += 'SKU,ชื่อสินค้า,สต็อกปัจจุบัน,สต็อกขั้นต่ำ,ราคา,มูลค่า,สถานะ\n';
+                    
+                    this.products.forEach(product => {
+                        const value = product.stock * product.price;
+                        const status = product.stock <= product.min_stock ? 'สต็อกต่ำ' : 'ปกติ';
+                        csvContent += `${product.sku},${product.name},${product.stock} ${product.unit},${product.min_stock} ${product.unit},${product.price.toLocaleString()},${value.toLocaleString()},${status}\n`;
+                    });
+                    
+                    // ดาวน์โหลดไฟล์
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `VeeVee-Inventory-Report-${new Date().toISOString().split('T')[0]}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    alert('ส่งออกรายงานคลังสินค้าเรียบร้อยแล้ว');
+                },
+
+                generateDailySalesReport() {
+                    console.log('📊 Generating daily sales report...');
+                    
+                    // สร้างข้อมูลยอดขายรายวัน
+                    const dailySales = {};
+                    
+                    this.posSales.forEach(sale => {
+                        const date = new Date(sale.timestamp).toISOString().split('T')[0];
+                        if (!dailySales[date]) {
+                            dailySales[date] = {
+                                orders: 0,
+                                total: 0,
+                                items: 0
+                            };
+                        }
+                        dailySales[date].orders += 1;
+                        dailySales[date].total += sale.total;
+                        dailySales[date].items += sale.items.length;
+                    });
+                    
+                    let csvContent = 'รายงานการขายรายวัน VeeVee\n';
+                    csvContent += `สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}\n`;
+                    csvContent += `ผู้สร้าง: ${this.userEmail}\n\n`;
+                    
+                    csvContent += 'วันที่,จำนวนบิล,ยอดขาย,สินค้าขาย,ยอดเฉลี่ย\n';
+                    
+                    Object.keys(dailySales).sort().forEach(date => {
+                        const data = dailySales[date];
+                        const avg = data.orders > 0 ? (data.total / data.orders).toFixed(2) : 0;
+                        csvContent += `${date},${data.orders},${data.total.toLocaleString()},${data.items},${avg}\n`;
+                    });
+                    
+                    // ดาวน์โหลดไฟล์
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `VeeVee-Daily-Sales-Report-${new Date().toISOString().split('T')[0]}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    alert('ส่งออกรายงานขายรายวันเรียบร้อยแล้ว');
+                },
+
+                // ================================
+                // 🔧 UTILITY FUNCTIONS
+                // ================================
+
+                async sendToAdminScript(data) {
+                    try {
+                        if (!this.ADMIN_SCRIPT_URL) {
+                            console.warn('⚠️ Admin Apps Script URL not configured');
+                            return { success: false, message: 'Admin system not configured' };
+                        }
+                        
+                        console.log('📤 Sending to Admin Apps Script:', data.action);
+                        
+                        const response = await fetch(this.ADMIN_SCRIPT_URL, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                ...data,
+                                referrer: window.location.href,
+                                admin_auth: this.userEmail,
+                                timestamp: new Date().toISOString()
+                            }),
+                            mode: 'cors'
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+
+                        const result = await response.json();
+                        console.log('✅ Admin Apps Script response:', result);
+                        
+                        return result;
+
+                    } catch (error) {
+                        console.error('❌ Admin Apps Script Error:', error);
+                        return { 
+                            success: false, 
+                            message: 'ไม่สามารถส่งข้อมูลไปยังระบบจัดการได้',
+                            error: error.message 
+                        };
+                    }
+                },
+
+                // ฟังก์ชันสำหรับรีเฟรชข้อมูล
+                async refreshAllData() {
+                    console.log('🔄 Refreshing all data...');
+                    this.loading = true;
+                    
+                    try {
+                        await Promise.all([
+                            this.refreshOrders(),
+                            this.refreshContacts(),
+                            this.refreshPaymentSlips(),
+                            this.refreshProducts(),
+                            this.refreshPOSSales()
+                        ]);
+                        
+                        this.filterProducts();
+                        this.generateSalesReport();
+                        
+                        console.log('✅ All data refreshed');
+                        alert('รีเฟรชข้อมูลเรียบร้อยแล้ว');
+                        
+                    } catch (error) {
+                        console.error('❌ Failed to refresh data:', error);
+                        alert('เกิดข้อผิดพลาดในการรีเฟรช: ' + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                // POS Functions
                 filterProducts() {
                     if (!this.posSearch) {
                         this.filteredProducts = this.products.filter(p => p.active && p.stock > 0);
@@ -1633,7 +1687,7 @@
                         );
                     }
                 },
-                
+
                 addToCart(product) {
                     if (product.stock <= 0) {
                         alert('สินค้าหมดสต็อก');
@@ -1659,7 +1713,7 @@
                         });
                     }
                 },
-                
+
                 updateCartQuantity(index, change) {
                     const item = this.posCart[index];
                     const newQuantity = item.quantity + change;
@@ -1672,11 +1726,11 @@
                         alert('จำนวนเกินสต็อกที่มี');
                     }
                 },
-                
+
                 clearPOSCart() {
                     this.posCart = [];
                 },
-                
+
                 async processPOSSale() {
                     if (this.posCart.length === 0) return;
                     
@@ -1699,51 +1753,37 @@
                             type: 'pos_sale'
                         };
                         
-                        // ✅ Try Admin Apps Script first
-                        let appsScriptSuccess = false;
-                        if (this.ADMIN_SCRIPT_URL) {
-                            try {
-                                const appsScriptResult = await this.sendToAdminScript({
-                                    action: 'pos_sale',
-                                    ...saleData
-                                });
-                                appsScriptSuccess = appsScriptResult.success;
-                                console.log('📧 Admin Apps Script result:', appsScriptResult);
-                            } catch (error) {
-                                console.error('❌ Admin Apps Script failed:', error);
-                            }
-                        }
-
-                        // ✅ Save to Firebase as backup
-                        let firebaseSuccess = false;
-                        try {
+                        // Save to Firebase
+                        if (window.firebaseAddDoc && window.firebaseCollection && window.firebaseDb) {
                             const salesRef = window.firebaseCollection(window.firebaseDb, 'pos_sales');
                             await window.firebaseAddDoc(salesRef, saleData);
-                            firebaseSuccess = true;
-                            console.log('🔥 POS sale saved to Firebase');
-                        } catch (error) {
-                            console.error('❌ Firebase save failed:', error);
+                            console.log('✅ POS sale saved to Firebase');
+                        }
+
+                        // ✅ ส่งไป Apps Script
+                        const adminResult = await this.sendToAdminScript({
+                            action: 'pos_sale',
+                            ...saleData
+                        });
+
+                        if (adminResult.success) {
+                            console.log('📧 POS sale sent to admin system');
                         }
                         
-                        if (appsScriptSuccess || firebaseSuccess) {
-                            // Update stock locally
-                            for (const item of this.posCart) {
-                                const product = this.products.find(p => p.id === item.id);
-                                if (product) {
-                                    product.stock -= item.quantity;
-                                }
+                        // Update stock locally
+                        for (const item of this.posCart) {
+                            const product = this.products.find(p => p.id === item.id);
+                            if (product) {
+                                product.stock -= item.quantity;
                             }
-                            
-                            // Clear cart and refresh data
-                            this.clearPOSCart();
-                            this.posCustomerName = '';
-                            await this.refreshPOSSales();
-                            
-                            alert('ขายสำเร็จ! บิลเลขที่: ' + saleData.sale_id);
-                            console.log('✅ POS Sale completed:', saleData.sale_id);
-                        } else {
-                            throw new Error('ไม่สามารถบันทึกการขายได้');
                         }
+                        
+                        // Clear cart
+                        this.clearPOSCart();
+                        this.posCustomerName = '';
+                        await this.refreshPOSSales();
+                        
+                        alert('ขายสำเร็จ! บิลเลขที่: ' + saleData.sale_id);
                         
                     } catch (error) {
                         console.error('❌ POS Sale failed:', error);
@@ -1752,82 +1792,16 @@
                         this.posProcessing = false;
                     }
                 },
-                
-                // ✅ ส่งข้อมูลไป Admin Apps Script
-                async sendToAdminScript(data) {
-                    try {
-                        if (!this.ADMIN_SCRIPT_URL) {
-                            console.warn('⚠️ Admin Apps Script URL not configured');
-                            return { success: false, message: 'Admin system not configured' };
-                        }
 
-                        console.log('📤 Sending to Admin Apps Script...');
-                        
-                        const response = await fetch(this.ADMIN_SCRIPT_URL, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                ...data,
-                                referrer: window.location.href,
-                                admin_auth: this.userEmail // ✅ ส่ง admin email ไปด้วย
-                            }),
-                            mode: 'cors'
-                        });
-
-                        if (!response.ok) {
-                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                        }
-
-                        const result = await response.json();
-                        console.log('✅ Admin Apps Script response:', result);
-                        
-                        return result;
-
-                    } catch (error) {
-                        console.error('❌ Admin Apps Script Error:', error);
-                        return { 
-                            success: false, 
-                            message: 'ไม่สามารถส่งข้อมูลไปยังระบบจัดการได้',
-                            error: error.message 
-                        };
-                    }
-                },
-                
-                // Inventory Methods
+                // Utility functions
                 getTotalStock() {
                     return this.products.reduce((sum, product) => sum + product.stock, 0);
                 },
-                
+
                 getInventoryValue() {
                     return this.products.reduce((sum, product) => sum + (product.stock * product.price), 0);
                 },
-                
-                adjustStock(product) {
-                    const newStock = prompt(`ปรับสต็อก ${product.name}\nสต็อกปัจจุบัน: ${product.stock} ${product.unit}\n\nใส่จำนวนสต็อกใหม่:`, product.stock);
-                    
-                    if (newStock !== null && !isNaN(newStock) && parseInt(newStock) >= 0) {
-                        product.stock = parseInt(newStock);
-                        console.log(`✅ Stock adjusted: ${product.name} = ${product.stock} ${product.unit}`);
-                        
-                        // TODO: Save to database
-                    }
-                },
-                
-                editProduct(product) {
-                    this.editingProduct = { ...product };
-                    this.showAddProductModal = true;
-                },
-                
-                toggleProductStatus(product) {
-                    product.active = !product.active;
-                    console.log(`✅ Product ${product.active ? 'activated' : 'deactivated'}: ${product.name}`);
-                    
-                    // TODO: Save to database
-                },
-                
-                // Reports Methods
+
                 generateSalesReport() {
                     const startDate = new Date(this.reportDateFrom);
                     const endDate = new Date(this.reportDateTo);
@@ -1840,24 +1814,26 @@
                     
                     const totalSales = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
                     const totalOrders = filteredSales.length;
-                    const totalItems = filteredSales.reduce((sum, sale) => sum + sale.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
+                    const totalItems = filteredSales.reduce((sum, sale) => sum + (sale.items ? sale.items.reduce((itemSum, item) => itemSum + item.quantity, 0) : 0), 0);
                     
                     // Calculate top products
                     const productSales = {};
                     filteredSales.forEach(sale => {
-                        sale.items.forEach(item => {
-                            if (!productSales[item.product_id]) {
-                                productSales[item.product_id] = {
-                                    product_id: item.product_id,
-                                    product_name: item.name,
-                                    quantity: 0,
-                                    total_sales: 0,
-                                    unit: this.products.find(p => p.id === item.product_id)?.unit || 'ชิ้น'
-                                };
-                            }
-                            productSales[item.product_id].quantity += item.quantity;
-                            productSales[item.product_id].total_sales += item.subtotal;
-                        });
+                        if (sale.items) {
+                            sale.items.forEach(item => {
+                                if (!productSales[item.product_id]) {
+                                    productSales[item.product_id] = {
+                                        product_id: item.product_id,
+                                        product_name: item.name,
+                                        quantity: 0,
+                                        total_sales: 0,
+                                        unit: this.products.find(p => p.id === item.product_id)?.unit || 'ชิ้น'
+                                    };
+                                }
+                                productSales[item.product_id].quantity += item.quantity;
+                                productSales[item.product_id].total_sales += item.subtotal;
+                            });
+                        }
                     });
                     
                     const topProducts = Object.values(productSales)
@@ -1874,42 +1850,20 @@
                     
                     console.log('📊 Sales report generated:', this.reportData);
                 },
-                
-                exportReport() {
-                    // TODO: Implement export functionality
-                    alert('ฟีเจอร์ส่งออกรายงานจะพัฒนาในเวอร์ชันต่อไป');
-                },
-                
-                generateStockReport() {
-                    // TODO: Implement stock report
-                    alert('ฟีเจอร์รายงานคลังสินค้าจะพัฒนาในเวอร์ชันต่อไป');
-                },
-                
-                    // ✅ Admin Functions
-                    openGoogleSheets() {
-                        if (this.SHEETS_URL) {
-                            window.open(this.SHEETS_URL, '_blank');
-                            console.log('📊 Opening Google Sheets from Admin Panel:', this.SHEETS_URL);
-                        } else {
-                            alert('Google Sheets URL ไม่ได้ตั้งค่า');
-                        }
-                    },
-                    
-                    formatDate(timestamp) {
-                        if (!timestamp) return 'N/A';
-                        
-                        let date;
-                        if (timestamp.seconds) {
-                            // Firestore timestamp
-                            date = new Date(timestamp.seconds * 1000);
-                        } else if (typeof timestamp === 'string') {
-                            date = new Date(timestamp);
-                        } else {
-                            date = new Date(timestamp);
-                        }
-                        
-                        return date.toLocaleDateString('th-TH') + ' ' + date.toLocaleTimeString('th-TH');
+
+                openGoogleSheets() {
+                    if (this.SHEETS_URL) {
+                        window.open(this.SHEETS_URL, '_blank');
+                    } else {
+                        alert('Google Sheets URL ไม่ได้ตั้งค่า');
                     }
+                },
+
+                formatDate(timestamp) {
+                    if (!timestamp) return 'N/A';
+                    const date = new Date(timestamp.seconds ? timestamp.seconds * 1000 : timestamp);
+                    return date.toLocaleDateString('th-TH') + ' ' + date.toLocaleTimeString('th-TH');
+                }
             }
         }
     </script>
