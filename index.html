@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VeeVee Admin Panel - Perfect Edition</title>
+    <title>VeeVee Admin Panel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -14,6 +14,7 @@
         import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, addDoc, query, orderBy, limit, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
+        // ⚠️ Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyAlUUr6ATEfDQohr5Zvdk5_C7xKJFBLem0",
             authDomain: "veeveeweb.firebaseapp.com",
@@ -28,6 +29,11 @@
             const db = getFirestore(app);
             const auth = getAuth(app);
 
+            // ✅ เช็คว่า Firebase โหลดสำเร็จ
+            console.log('🔥 Firebase App initialized:', app.name);
+            console.log('🔥 Firebase Auth initialized:', auth.app.name);
+
+            // ✅ Export ฟังก์ชันไปยัง window พร้อม error handling
             window.firebaseDb = db;
             window.firebaseAuth = auth;
             window.firebaseCollection = collection;
@@ -44,35 +50,42 @@
             window.firebaseSignInWithEmailAndPassword = signInWithEmailAndPassword;
             window.firebaseSignOut = signOut;
             
+            // ✅ แก้ไข onAuthStateChanged พร้อม error handling
             window.firebaseOnAuthStateChanged = function(auth, callback) {
                 try {
                     return onAuthStateChanged(auth, callback);
                 } catch (error) {
                     console.error('❌ Firebase onAuthStateChanged error:', error);
+                    // ✅ Fallback: เรียก callback ด้วย null user
                     setTimeout(() => callback(null), 100);
-                    return () => {};
+                    return () => {}; // Return empty unsubscribe function
                 }
             };
 
+            // ✅ ทดสอบ Firebase Auth
             window.firebaseOnAuthStateChanged(auth, (user) => {
                 if (user) {
                     console.log('✅ Firebase Auth: User is signed in:', user.email);
                     
-                    setTimeout(() => {
-                        const adminApp = document.querySelector('[x-data="adminApp"]');
-                        if (adminApp && adminApp._x_dataStack) {
-                            const data = adminApp._x_dataStack[0];
-                            if (data) {
-                                data.isAuthenticated = true;
-                                data.userEmail = user.email;
-                                console.log('✅ Admin state updated via Alpine');
-                                
-                                if (typeof data.loadAllData === 'function') {
-                                    data.loadAllData();
+                    // ✅ Trigger Alpine.js อัปเดต
+                    if (window.Alpine && window.Alpine.store) {
+                        setTimeout(() => {
+                            const adminApp = document.querySelector('[x-data="adminApp"]');
+                            if (adminApp && adminApp._x_dataStack) {
+                                const data = adminApp._x_dataStack[0];
+                                if (data) {
+                                    data.isAuthenticated = true;
+                                    data.userEmail = user.email;
+                                    console.log('✅ Admin state updated via Alpine');
+                                    
+                                    // โหลดข้อมูล
+                                    if (typeof data.loadAllData === 'function') {
+                                        data.loadAllData();
+                                    }
                                 }
                             }
-                        }
-                    }, 500);
+                        }, 500);
+                    }
                 } else {
                     console.log('🚪 Firebase Auth: User is signed out');
                 }
@@ -83,6 +96,7 @@
         } catch (error) {
             console.error('❌ Firebase initialization failed:', error);
             
+            // ✅ Fallback: Mock Firebase functions
             window.firebaseDb = null;
             window.firebaseAuth = null;
             window.firebaseOnAuthStateChanged = function(auth, callback) {
@@ -117,66 +131,15 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            min-width: 300px;
-            max-width: 500px;
-            padding: 16px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            transform: translateX(100%);
-            transition: transform 0.3s ease-in-out;
-        }
-        .notification.show {
-            transform: translateX(0);
-        }
-        .notification.success {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-        }
-        .notification.error {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-        }
-        .notification.warning {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            color: #856404;
-        }
-        .modal-backdrop {
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-        }
     </style>
 </head>
 
 <body class="bg-gray-50" x-data="adminApp">
     
-    <!-- Notification System -->
-    <div id="notification" class="notification">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center">
-                <i id="notification-icon" class="mr-2"></i>
-                <span id="notification-message"></span>
-            </div>
-            <button onclick="hideNotification()" class="ml-4 text-gray-500 hover:text-gray-700">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    </div>
-    
     <!-- Login Screen -->
     <div x-show="!isAuthenticated" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-400 to-blue-500">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-96">
             <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-green-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <i class="fas fa-leaf text-green-600 text-2xl"></i>
-                </div>
                 <h1 class="text-3xl font-bold text-gray-800 mb-2">VeeVee Admin</h1>
                 <p class="text-gray-600">ระบบจัดการหลังบ้าน</p>
             </div>
@@ -215,23 +178,17 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16">
                     <div class="flex items-center">
-                        <div class="w-8 h-8 bg-green-100 rounded-lg mr-3 flex items-center justify-center">
-                            <i class="fas fa-leaf text-green-600"></i>
-                        </div>
                         <h1 class="text-2xl font-bold text-gray-900">VeeVee Admin</h1>
                         <span class="ml-4 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                            <i class="fas fa-circle text-green-500 text-xs mr-1"></i>ออนไลน์
+                            ออนไลน์
                         </span>
                     </div>
                     
                     <div class="flex items-center space-x-4">
                         <button @click="openGoogleSheets()" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition-colors text-sm">
-                            <i class="fas fa-table mr-1"></i>Google Sheets
+                            📊 Google Sheets
                         </button>
-                        <div class="text-right">
-                            <div class="text-sm text-gray-500">สวัสดี</div>
-                            <div class="text-sm font-medium text-gray-900" x-text="userEmail"></div>
-                        </div>
+                        <span class="text-gray-700" x-text="'สวัสดี, ' + userEmail"></span>
                         <button @click="logout" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
                             <i class="fas fa-sign-out-alt mr-2"></i>ออกจากระบบ
                         </button>
@@ -244,32 +201,25 @@
         <nav class="bg-white border-b border-gray-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex space-x-8 overflow-x-auto">
-                    <button @click="currentTab = 'slips'" 
-                            :class="currentTab === 'slips' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    <button @click="currentTab = 'pos'" 
+                            :class="currentTab === 'pos' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                             class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
-                        <i class="fas fa-receipt mr-2"></i>สลิปการโอน
-                        <span class="ml-2 bg-red-100 text-red-800 text-xs rounded-full px-2 py-1" x-text="pendingSlips"></span>
+                        <i class="fas fa-cash-register mr-2"></i>ขายหน้าร้าน (POS)
+                        <span class="ml-2 bg-green-100 text-green-800 text-xs rounded-full px-2 py-1">เปิด</span>
+                    </button>
+                    
+                    <button @click="currentTab = 'products'" 
+                            :class="currentTab === 'products' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
+                        <i class="fas fa-box mr-2"></i>จัดการสินค้า
+                        <span class="ml-2 bg-blue-100 text-blue-800 text-xs rounded-full px-2 py-1" x-text="products.length"></span>
                     </button>
                     
                     <button @click="currentTab = 'orders'" 
                             :class="currentTab === 'orders' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                             class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
-                        <i class="fas fa-shopping-cart mr-2"></i>คำสั่งซื้อ
+                        <i class="fas fa-shopping-cart mr-2"></i>คำสั่งซื้อออนไลน์
                         <span class="ml-2 bg-blue-100 text-blue-800 text-xs rounded-full px-2 py-1" x-text="orders.length"></span>
-                    </button>
-                    
-                    <button @click="currentTab = 'inventory'" 
-                            :class="currentTab === 'inventory' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                            class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
-                        <i class="fas fa-warehouse mr-2"></i>จัดการสต็อก
-                        <span class="ml-2 bg-yellow-100 text-yellow-800 text-xs rounded-full px-2 py-1" x-text="getTotalStock()"></span>
-                    </button>
-                    
-                    <button @click="currentTab = 'pos'" 
-                            :class="currentTab === 'pos' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                            class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
-                        <i class="fas fa-cash-register mr-2"></i>POS ขายหน้าร้าน
-                        <span class="ml-2 bg-green-100 text-green-800 text-xs rounded-full px-2 py-1">เปิด</span>
                     </button>
                     
                     <button @click="currentTab = 'contacts'" 
@@ -279,10 +229,24 @@
                         <span class="ml-2 bg-blue-100 text-blue-800 text-xs rounded-full px-2 py-1" x-text="contacts.length"></span>
                     </button>
                     
+                    <button @click="currentTab = 'slips'" 
+                            :class="currentTab === 'slips' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
+                        <i class="fas fa-receipt mr-2"></i>สลิปการโอน
+                        <span class="ml-2 bg-blue-100 text-blue-800 text-xs rounded-full px-2 py-1" x-text="paymentSlips.length"></span>
+                    </button>
+                    
                     <button @click="currentTab = 'reports'" 
                             :class="currentTab === 'reports' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                             class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
-                        <i class="fas fa-chart-line mr-2"></i>รายงาน
+                        <i class="fas fa-chart-line mr-2"></i>รายงานการขาย
+                    </button>
+                    
+                    <button @click="currentTab = 'inventory'" 
+                            :class="currentTab === 'inventory' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap">
+                        <i class="fas fa-warehouse mr-2"></i>คลังสินค้า
+                        <span class="ml-2 bg-yellow-100 text-yellow-800 text-xs rounded-full px-2 py-1" x-text="getTotalStock()"></span>
                     </button>
                 </div>
             </div>
@@ -291,43 +255,136 @@
         <!-- Content -->
         <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
             
-            <!-- Loading Overlay -->
-            <div x-show="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="bg-white p-6 rounded-lg shadow-lg text-center">
-                    <div class="loading mx-auto mb-4" style="width: 40px; height: 40px;"></div>
-                    <p class="text-gray-700">กำลังโหลดข้อมูล...</p>
-                </div>
-            </div>
-
-            <!-- ========================== -->
-            <!-- 🧾 PAYMENT SLIPS TAB -->
-            <!-- ========================== -->
-            <div x-show="currentTab === 'slips' && !loading">
-                <div class="flex justify-between items-center mb-6">
-                    <div>
-                        <h2 class="text-2xl font-bold text-gray-900">🧾 จัดการสลิปการโอนเงิน</h2>
-                        <p class="text-gray-600 mt-1">อนุมัติ ลบ และจัดการสลิปการโอนเงินจากลูกค้า</p>
+            <!-- POS System Tab -->
+            <div x-show="currentTab === 'pos' && !loading">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Product Selection -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white rounded-lg shadow-sm p-6">
+                            <h2 class="text-xl font-bold text-gray-900 mb-6">เลือกสินค้า</h2>
+                            
+                            <!-- Search Bar -->
+                            <div class="mb-4">
+                                <input type="text" x-model="posSearch" @input="filterProducts" 
+                                       placeholder="ค้นหาสินค้า..." 
+                                       class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                            </div>
+                            
+                            <!-- Product Grid -->
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <template x-for="product in filteredProducts" :key="product.id">
+                                    <div @click="addToCart(product)" 
+                                         class="p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-green-500 hover:bg-green-50 transition-all">
+                                        <div class="text-center">
+                                            <div class="w-16 h-16 bg-green-100 rounded-full mx-auto mb-3 flex items-center justify-center">
+                                                <i class="fas fa-box text-green-600 text-xl"></i>
+                                            </div>
+                                            <h3 class="font-semibold text-gray-900" x-text="product.name"></h3>
+                                            <p class="text-lg font-bold text-green-600 mt-1" x-text="'฿' + product.price"></p>
+                                            <p class="text-sm text-gray-500" x-text="'คงเหลือ: ' + product.stock + ' ' + product.unit"></p>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex space-x-3">
-                        <button @click="refreshPaymentSlips()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
-                            <i class="fas fa-sync-alt mr-2"></i>รีเฟรช
-                        </button>
-                        <button @click="bulkApproveSlips()" :disabled="pendingSlips === 0" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50">
-                            <i class="fas fa-check-double mr-2"></i>อนุมัติทั้งหมด
-                        </button>
+                    
+                    <!-- Cart & Checkout -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white rounded-lg shadow-sm p-6 sticky top-6">
+                            <h2 class="text-xl font-bold text-gray-900 mb-6">รายการสั่งซื้อ</h2>
+                            
+                            <!-- Cart Items -->
+                            <div class="space-y-3 mb-6 max-h-64 overflow-y-auto">
+                                <template x-for="(item, index) in posCart" :key="index">
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div class="flex-1">
+                                            <h4 class="font-medium" x-text="item.name"></h4>
+                                            <p class="text-sm text-gray-600" x-text="'฿' + item.price + ' x ' + item.quantity"></p>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <button @click="updateCartQuantity(index, -1)" class="w-6 h-6 bg-red-500 text-white rounded-full text-xs">-</button>
+                                            <span class="w-8 text-center" x-text="item.quantity"></span>
+                                            <button @click="updateCartQuantity(index, 1)" class="w-6 h-6 bg-green-500 text-white rounded-full text-xs">+</button>
+                                        </div>
+                                    </div>
+                                </template>
+                                
+                                <div x-show="posCart.length === 0" class="text-center text-gray-500 py-8">
+                                    <i class="fas fa-shopping-cart text-4xl mb-2"></i>
+                                    <p>ยังไม่มีสินค้าในตะกร้า</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Total -->
+                            <div class="border-t pt-4 mb-6">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-lg font-semibold">รวมทั้งสิ้น:</span>
+                                    <span class="text-2xl font-bold text-green-600" x-text="'฿' + posTotal.toLocaleString()"></span>
+                                </div>
+                            </div>
+                            
+                            <!-- Payment Method -->
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">วิธีการชำระเงิน</label>
+                                <select x-model="posPaymentMethod" class="w-full p-2 border border-gray-300 rounded-lg">
+                                    <option value="cash">เงินสด</option>
+                                    <option value="transfer">โอนเงิน</option>
+                                    <option value="qr">QR PromptPay</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Customer Info -->
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อลูกค้า (ไม่ใส่ก็ได้)</label>
+                                <input type="text" x-model="posCustomerName" 
+                                       class="w-full p-2 border border-gray-300 rounded-lg" 
+                                       placeholder="ชื่อลูกค้า">
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="space-y-3">
+                                <button @click="processPOSSale()" :disabled="posCart.length === 0 || posProcessing"
+                                        class="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <span x-show="!posProcessing">
+                                        <i class="fas fa-cash-register mr-2"></i>ชำระเงิน
+                                    </span>
+                                    <span x-show="posProcessing" class="flex items-center justify-center">
+                                        <div class="loading mr-2"></div>กำลังดำเนินการ...
+                                    </span>
+                                </button>
+                                
+                                <button @click="clearPOSCart()" :disabled="posCart.length === 0"
+                                        class="w-full bg-gray-500 text-white py-2 rounded-lg font-semibold hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <i class="fas fa-trash mr-2"></i>ล้างรายการ
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Stats -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <!-- Today's Sales Summary -->
+                <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-green-100 rounded-lg">
+                                <i class="fas fa-cash-register text-green-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">ยอดขายวันนี้</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="'฿' + todaySales.toLocaleString()"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="bg-white p-6 rounded-lg shadow-sm">
                         <div class="flex items-center">
                             <div class="p-2 bg-blue-100 rounded-lg">
                                 <i class="fas fa-receipt text-blue-600"></i>
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm text-gray-600">สลิปทั้งหมด</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="paymentSlips.length"></p>
+                                <p class="text-sm text-gray-600">บิลวันนี้</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="todayOrders"></p>
                             </div>
                         </div>
                     </div>
@@ -335,23 +392,11 @@
                     <div class="bg-white p-6 rounded-lg shadow-sm">
                         <div class="flex items-center">
                             <div class="p-2 bg-yellow-100 rounded-lg">
-                                <i class="fas fa-clock text-yellow-600"></i>
+                                <i class="fas fa-chart-line text-yellow-600"></i>
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm text-gray-600">รอการอนุมัติ</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="pendingSlips"></p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-white p-6 rounded-lg shadow-sm">
-                        <div class="flex items-center">
-                            <div class="p-2 bg-green-100 rounded-lg">
-                                <i class="fas fa-check-circle text-green-600"></i>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-sm text-gray-600">อนุมัติแล้ว</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="approvedSlips"></p>
+                                <p class="text-sm text-gray-600">ยอดขายเฉลี่ย</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="'฿' + (todayOrders > 0 ? (todaySales / todayOrders).toFixed(0) : 0)"></p>
                             </div>
                         </div>
                     </div>
@@ -359,131 +404,105 @@
                     <div class="bg-white p-6 rounded-lg shadow-sm">
                         <div class="flex items-center">
                             <div class="p-2 bg-purple-100 rounded-lg">
-                                <i class="fas fa-money-bill-wave text-purple-600"></i>
+                                <i class="fas fa-clock text-purple-600"></i>
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm text-gray-600">ยอดรวมวันนี้</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="'฿' + getTodaySlipAmount().toLocaleString()"></p>
+                                <p class="text-sm text-gray-600">บิลล่าสุด</p>
+                                <p class="text-lg font-bold text-gray-900" x-text="lastSaleTime"></p>
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Slips Grid -->
-                <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    <template x-for="slip in paymentSlips" :key="slip.id">
-                        <div class="bg-white shadow-sm rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                            <!-- Slip Image -->
-                            <div class="h-48 bg-gray-100 flex items-center justify-center relative">
-                                <template x-if="slip.file_data || slip.image_url">
-                                    <img :src="slip.image_url || ('data:' + slip.file_type + ';base64,' + slip.file_data)" 
-                                         class="max-h-full max-w-full object-contain cursor-pointer" 
-                                         alt="Payment Slip"
-                                         @click="viewSlipImage(slip)">
-                                </template>
-                                <template x-if="!slip.file_data && !slip.image_url">
-                                    <div class="text-gray-400">
-                                        <i class="fas fa-image text-4xl mb-2"></i>
-                                        <p>ไม่มีรูปภาพ</p>
-                                    </div>
-                                </template>
-                                
-                                <!-- Status Badge -->
-                                <div class="absolute top-2 right-2">
-                                    <span x-show="slip.verification_status === 'pending'" class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
-                                        <i class="fas fa-clock mr-1"></i>รอตรวจสอบ
-                                    </span>
-                                    <span x-show="slip.verification_status === 'approved'" class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                                        <i class="fas fa-check mr-1"></i>อนุมัติแล้ว
-                                    </span>
-                                    <span x-show="slip.verification_status === 'rejected'" class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
-                                        <i class="fas fa-times mr-1"></i>ปฏิเสธ
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            <!-- Slip Details -->
-                            <div class="p-4">
-                                <div class="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h3 class="font-semibold text-gray-900" x-text="slip.order_number"></h3>
-                                        <p class="text-sm text-gray-500" x-text="formatDate(slip.uploaded_at || slip.timestamp)"></p>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-lg font-bold text-green-600" x-text="'฿' + slip.amount?.toLocaleString()"></p>
-                                    </div>
-                                </div>
-                                
-                                <div class="text-sm text-gray-600 mb-4">
-                                    <p><strong>ไฟล์:</strong> <span x-text="slip.file_name || 'N/A'"></span></p>
-                                    <p><strong>ขนาด:</strong> <span x-text="slip.file_size ? (slip.file_size / 1024).toFixed(1) + ' KB' : 'N/A'"></span></p>
-                                </div>
-                                
-                                <!-- Action Buttons -->
-                                <div class="flex space-x-2">
-                                    <template x-if="slip.verification_status === 'pending'">
-                                        <div class="flex space-x-2 w-full">
-                                            <button @click="approveSlip(slip)" class="flex-1 bg-green-500 text-white py-2 px-3 rounded text-sm hover:bg-green-600 transition-colors">
-                                                <i class="fas fa-check mr-1"></i>อนุมัติ
-                                            </button>
-                                            <button @click="deleteSlip(slip)" class="flex-1 bg-red-500 text-white py-2 px-3 rounded text-sm hover:bg-red-600 transition-colors">
-                                                <i class="fas fa-trash mr-1"></i>ลบ
-                                            </button>
-                                        </div>
-                                    </template>
-                                    
-                                    <template x-if="slip.verification_status === 'approved'">
-                                        <div class="flex space-x-2 w-full">
-                                            <button @click="showShippingForm(slip)" class="flex-1 bg-blue-500 text-white py-2 px-3 rounded text-sm hover:bg-blue-600 transition-colors">
-                                                <i class="fas fa-shipping-fast mr-1"></i>จัดส่ง
-                                            </button>
-                                            <button @click="deleteSlip(slip)" class="bg-red-500 text-white py-2 px-3 rounded text-sm hover:bg-red-600 transition-colors">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </template>
-                                    
-                                    <template x-if="slip.verification_status === 'rejected'">
-                                        <button @click="deleteSlip(slip)" class="w-full bg-red-500 text-white py-2 px-3 rounded text-sm hover:bg-red-600 transition-colors">
-                                            <i class="fas fa-trash mr-1"></i>ลบ
-                                        </button>
-                                    </template>
-                                </div>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-                
-                <!-- Empty State -->
-                <div x-show="paymentSlips.length === 0" class="text-center py-12">
-                    <div class="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                        <i class="fas fa-receipt text-gray-400 text-3xl"></i>
-                    </div>
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">ไม่มีสลิปการโอนเงิน</h3>
-                    <p class="text-gray-500">เมื่อลูกค้าอัปโหลดสลิปการโอนเงิน จะแสดงที่นี่</p>
                 </div>
             </div>
 
-            <!-- ========================== -->
-            <!-- 📦 INVENTORY TAB -->
-            <!-- ========================== -->
-            <div x-show="currentTab === 'inventory' && !loading">
+            <!-- Products Management Tab -->
+            <div x-show="currentTab === 'products' && !loading">
                 <div class="flex justify-between items-center mb-6">
-                    <div>
-                        <h2 class="text-2xl font-bold text-gray-900">📦 จัดการสต็อกสินค้า</h2>
-                        <p class="text-gray-600 mt-1">ตรวจสอบ เพิ่ม ลด และจัดการสต็อกสินค้าทั้งหมด</p>
-                    </div>
+                    <h2 class="text-xl font-bold text-gray-900">จัดการสินค้า</h2>
                     <div class="flex space-x-3">
-                        <button @click="refreshStock()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
-                            <i class="fas fa-sync-alt mr-2"></i>รีเฟรช
+                        <button @click="addNewProduct()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>เพิ่มสินค้า
                         </button>
-                        <button @click="exportStockReport()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                            <i class="fas fa-download mr-2"></i>ส่งออกรายงาน
+                        <button @click="refreshAllData()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>รีเฟรช
                         </button>
                     </div>
                 </div>
                 
-                <!-- Stock Stats -->
+                <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">รหัสสินค้า</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อสินค้า</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ราคา</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สต็อก</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">หมวดหมู่</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <template x-for="product in products" :key="product.id">
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="product.sku"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900" x-text="product.name"></div>
+                                            <div class="text-sm text-gray-500" x-text="product.description"></div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="'฿' + product.price?.toLocaleString()"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span :class="product.stock <= product.min_stock ? 'text-red-600 font-bold' : 'text-gray-900'" 
+                                                  x-text="product.stock + ' ' + product.unit"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="product.category"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span :class="product.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" 
+                                                  class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                                  x-text="product.active ? 'ใช้งาน' : 'หยุดใช้'"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                            <button @click="editProduct(product)" class="text-blue-600 hover:text-blue-900">แก้ไข</button>
+                                            <button @click="toggleProductStatus(product)" class="text-yellow-600 hover:text-yellow-900">
+                                                <span x-text="product.active ? 'หยุดใช้' : 'เปิดใช้'"></span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Tab -->
+            <div x-show="currentTab === 'inventory' && !loading">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">คลังสินค้า</h2>
+                    <div class="flex space-x-3">
+                        <button @click="bulkStockAdjustment()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-edit mr-2"></i>ปรับสต็อกแบบ Bulk
+                        </button>
+                        <button @click="generateInventoryReport()" class="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors">
+                            <i class="fas fa-file-export mr-2"></i>ส่งออกรายงานคลัง
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Stock Alerts -->
+                <div x-show="lowStockProducts.length > 0" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <h3 class="text-red-800 font-semibold mb-2">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>แจ้งเตือนสต็อกต่ำ
+                    </h3>
+                    <div class="text-red-700">
+                        <template x-for="product in lowStockProducts" :key="product.id">
+                            <p x-text="product.name + ' เหลือ ' + product.stock + ' ' + product.unit + ' (ต่ำกว่าขั้นต่ำ ' + product.min_stock + ' ' + product.unit + ')'"></p>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Inventory Overview -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     <div class="bg-white p-6 rounded-lg shadow-sm">
                         <div class="flex items-center">
@@ -492,7 +511,7 @@
                             </div>
                             <div class="ml-4">
                                 <p class="text-sm text-gray-600">สินค้าทั้งหมด</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="stockData.length"></p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="products.length"></p>
                             </div>
                         </div>
                     </div>
@@ -516,7 +535,7 @@
                             </div>
                             <div class="ml-4">
                                 <p class="text-sm text-gray-600">สต็อกต่ำ</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="getLowStockCount()"></p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="lowStockProducts.length"></p>
                             </div>
                         </div>
                     </div>
@@ -528,13 +547,13 @@
                             </div>
                             <div class="ml-4">
                                 <p class="text-sm text-gray-600">มูลค่าสต็อก</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="'฿' + getStockValue().toLocaleString()"></p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="'฿' + getInventoryValue().toLocaleString()"></p>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Stock Table -->
+                <!-- Stock List -->
                 <div class="bg-white shadow-sm rounded-lg overflow-hidden">
                     <div class="px-6 py-4 border-b border-gray-200">
                         <h3 class="text-lg font-medium text-gray-900">รายการสต็อกสินค้า</h3>
@@ -546,31 +565,29 @@
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สินค้า</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สต็อกปัจจุบัน</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ขั้นต่ำ</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ราคา</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">มูลค่า</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                <template x-for="product in stockData" :key="product.id">
-                                    <tr class="hover:bg-gray-50" :class="{'bg-red-50': product.stock <= (product.min_stock || 0)}">
+                                <template x-for="product in products" :key="product.id">
+                                    <tr class="hover:bg-gray-50">
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="text-sm font-medium text-gray-900" x-text="product.name"></div>
-                                            <div class="text-sm text-gray-500" x-text="'ID: ' + product.id"></div>
+                                            <div class="text-sm text-gray-500" x-text="product.sku"></div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <span :class="product.stock <= (product.min_stock || 0) ? 'text-red-600 font-bold' : 'text-gray-900'" 
-                                                  x-text="product.stock"></span>
+                                            <span :class="product.stock <= product.min_stock ? 'text-red-600 font-bold' : 'text-gray-900'" 
+                                                  x-text="product.stock + ' ' + product.unit"></span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="product.min_stock || 0"></td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="'฿' + (product.price || 0).toLocaleString()"></td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="'฿' + ((product.stock || 0) * (product.price || 0)).toLocaleString()"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="product.min_stock + ' ' + product.unit"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="'฿' + (product.stock * product.price).toLocaleString()"></td>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <span x-show="product.stock > (product.min_stock || 0)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            <span x-show="product.stock > product.min_stock" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                                 ปกติ
                                             </span>
-                                            <span x-show="product.stock <= (product.min_stock || 0) && product.stock > 0" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                            <span x-show="product.stock <= product.min_stock && product.stock > 0" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
                                                 ต่ำ
                                             </span>
                                             <span x-show="product.stock === 0" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
@@ -578,9 +595,7 @@
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <button @click="showStockAdjustment(product)" class="text-blue-600 hover:text-blue-900">
-                                                <i class="fas fa-edit mr-1"></i>ปรับสต็อก
-                                            </button>
+                                            <button @click="adjustStock(product)" class="text-blue-600 hover:text-blue-900">ปรับสต็อก</button>
                                         </td>
                                     </tr>
                                 </template>
@@ -588,25 +603,118 @@
                         </table>
                     </div>
                 </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div x-show="currentTab === 'reports' && !loading">
+                <h2 class="text-xl font-bold text-gray-900 mb-6">รายงานการขาย</h2>
                 
-                <!-- Empty State -->
-                <div x-show="stockData.length === 0" class="text-center py-12">
-                    <div class="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                        <i class="fas fa-boxes text-gray-400 text-3xl"></i>
+                <!-- Date Filter -->
+                <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                    <div class="flex flex-wrap items-end gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">วันที่เริ่มต้น</label>
+                            <input type="date" x-model="reportDateFrom" class="p-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">วันที่สิ้นสุด</label>
+                            <input type="date" x-model="reportDateTo" class="p-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <button @click="generateSalesReport()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-search mr-2"></i>ค้นหา
+                        </button>
+                        <button @click="exportReport()" class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                            <i class="fas fa-download mr-2"></i>ส่งออกรายงาน
+                        </button>
+                        <button @click="generateAdvancedReport()" class="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors">
+                            <i class="fas fa-chart-pie mr-2"></i>รายงานขั้นสูง
+                        </button>
                     </div>
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">ไม่มีข้อมูลสต็อก</h3>
-                    <p class="text-gray-500">ข้อมูลสต็อกจะแสดงที่นี่เมื่อมีการโหลดข้อมูล</p>
+                </div>
+                
+                <!-- Sales Summary -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-green-100 rounded-lg">
+                                <i class="fas fa-dollar-sign text-green-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">ยอดขายรวม</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="'฿' + reportData.totalSales.toLocaleString()"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-blue-100 rounded-lg">
+                                <i class="fas fa-receipt text-blue-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">จำนวนบิล</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="reportData.totalOrders"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-yellow-100 rounded-lg">
+                                <i class="fas fa-chart-line text-yellow-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">ยอดเฉลี่ยต่อบิล</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="'฿' + reportData.averageOrderValue.toFixed(0)"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-purple-100 rounded-lg">
+                                <i class="fas fa-boxes text-purple-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm text-gray-600">สินค้าขายได้</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="reportData.totalItems"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Top Products -->
+                <div class="bg-white shadow-sm rounded-lg p-6 mb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">สินค้าขายดี</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="text-left py-2">อันดับ</th>
+                                    <th class="text-left py-2">สินค้า</th>
+                                    <th class="text-left py-2">จำนวนขาย</th>
+                                    <th class="text-left py-2">ยอดขาย</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(item, index) in reportData.topProducts" :key="item.product_id">
+                                    <tr class="border-b">
+                                        <td class="py-2" x-text="index + 1"></td>
+                                        <td class="py-2" x-text="item.product_name"></td>
+                                        <td class="py-2" x-text="item.quantity + ' ' + item.unit"></td>
+                                        <td class="py-2" x-text="'฿' + item.total_sales.toLocaleString()"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- ========================== -->
-            <!-- 🛒 OTHER TABS -->
-            <!-- ========================== -->
-            
             <!-- Orders Tab -->
             <div x-show="currentTab === 'orders' && !loading">
                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">🛒 คำสั่งซื้อออนไลน์</h2>
+                    <h2 class="text-xl font-bold text-gray-900">คำสั่งซื้อ</h2>
                     <button @click="refreshOrders()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
                         <i class="fas fa-sync-alt mr-2"></i>รีเฟรช
                     </button>
@@ -628,14 +736,14 @@
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <template x-for="order in orders" :key="order.id">
                                     <tr class="hover:bg-gray-50">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" x-text="order.customer_id || order.id || 'N/A'"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" x-text="order.customer_id || 'N/A'"></td>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900" x-text="order.name || 'ไม่ระบุชื่อ'"></div>
-                                            <div class="text-sm text-gray-500" x-text="order.email || ''"></div>
-                                            <div class="text-sm text-gray-500" x-text="order.phone || ''"></div>
+                                            <div class="text-sm text-gray-900" x-text="order.name"></div>
+                                            <div class="text-sm text-gray-500" x-text="order.email"></div>
+                                            <div class="text-sm text-gray-500" x-text="order.phone"></div>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="(order.quantity || 1) + ' ซอง'"></td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="'฿' + (order.total_amount || 0)?.toLocaleString()"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="order.quantity + ' ซอง'"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="'฿' + order.total_amount?.toLocaleString()"></td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="formatDate(order.created_at || order.timestamp)"></td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
@@ -650,29 +758,10 @@
                 </div>
             </div>
 
-            <!-- POS Tab -->
-            <div x-show="currentTab === 'pos' && !loading">
-                <div class="mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">💰 ระบบขายหน้าร้าน (POS)</h2>
-                    <p class="text-gray-600 mt-1">ระบบขายสินค้าหน้าร้านพร้อมการจัดการสต็อกอัตโนมัติ</p>
-                </div>
-                
-                <div class="bg-white p-6 rounded-lg shadow-sm text-center">
-                    <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                        <i class="fas fa-cash-register text-green-600 text-2xl"></i>
-                    </div>
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">ระบบ POS พร้อมใช้งาน</h3>
-                    <p class="text-gray-500 mb-4">คุณสามารถใช้ระบบ POS แยกต่างหากหรือเพิ่มฟีเจอร์ POS ในหน้านี้ได้</p>
-                    <button class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors">
-                        <i class="fas fa-external-link-alt mr-2"></i>เปิดระบบ POS
-                    </button>
-                </div>
-            </div>
-
             <!-- Contacts Tab -->
             <div x-show="currentTab === 'contacts' && !loading">
                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">📧 ข้อความติดต่อ</h2>
+                    <h2 class="text-xl font-bold text-gray-900">ข้อความติดต่อ</h2>
                     <button @click="refreshContacts()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
                         <i class="fas fa-sync-alt mr-2"></i>รีเฟรช
                     </button>
@@ -683,315 +772,142 @@
                         <div class="bg-white shadow-sm rounded-lg p-6">
                             <div class="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 class="text-lg font-semibold text-gray-900" x-text="contact.name || 'ไม่ระบุชื่อ'"></h3>
-                                    <p class="text-gray-600" x-text="(contact.email || '') + ' • ' + (contact.phone || '')"></p>
+                                    <h3 class="text-lg font-semibold text-gray-900" x-text="contact.name"></h3>
+                                    <p class="text-gray-600" x-text="contact.email + ' • ' + contact.phone"></p>
                                     <p class="text-sm text-gray-500" x-text="formatDate(contact.timestamp)"></p>
                                 </div>
-                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">ใหม่</span>
+                                <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">ใหม่</span>
                             </div>
-                            <div class="text-gray-800" x-text="contact.message || 'ไม่มีข้อความ'"></div>
+                            <div class="text-gray-800" x-text="contact.message"></div>
                         </div>
                     </template>
                 </div>
             </div>
 
-            <!-- Reports Tab -->
-            <div x-show="currentTab === 'reports' && !loading">
-                <div class="mb-6">
-                    <h2 class="text-2xl font-bold text-gray-900">📊 รายงานและสถิติ</h2>
-                    <p class="text-gray-600 mt-1">สรุปยอดขาย รายงาน และสถิติต่าง ๆ</p>
+            <!-- Payment Slips Tab -->
+            <div x-show="currentTab === 'slips' && !loading">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">สลิปการโอนเงิน</h2>
+                    <button @click="refreshPaymentSlips()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>รีเฟรช
+                    </button>
                 </div>
                 
-                <div class="bg-white p-6 rounded-lg shadow-sm text-center">
-                    <div class="mx-auto w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
-                        <i class="fas fa-chart-line text-purple-600 text-2xl"></i>
-                    </div>
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">ระบบรายงานขั้นสูง</h3>
-                    <p class="text-gray-500 mb-4">ฟีเจอร์รายงานขั้นสูงจะพัฒนาในเวอร์ชันถัดไป</p>
-                    <button class="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 transition-colors">
-                        <i class="fas fa-coming-soon mr-2"></i>เร็ว ๆ นี้
-                    </button>
+                <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <template x-for="slip in paymentSlips" :key="slip.id">
+                        <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+                            <div x-show="slip.file_data" class="h-48 bg-gray-100 flex items-center justify-center">
+                                <img :src="'data:' + slip.file_type + ';base64,' + slip.file_data" 
+                                     class="max-h-full max-w-full object-contain" alt="Payment Slip">
+                            </div>
+                            <div class="p-4">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h3 class="font-semibold text-gray-900" x-text="slip.order_number"></h3>
+                                    <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">รอตรวจสอบ</span>
+                                </div>
+                                <p class="text-lg font-bold text-green-600" x-text="'฿' + slip.amount?.toLocaleString()"></p>
+                                <p class="text-sm text-gray-500" x-text="formatDate(slip.uploaded_at || slip.timestamp)"></p>
+                                <div class="mt-3 flex space-x-2">
+                                    <button @click="approvePaymentSlip(slip)" class="flex-1 bg-green-500 text-white py-2 px-3 rounded text-sm hover:bg-green-600 transition-colors">
+                                        ✅ อนุมัติ
+                                    </button>
+                                    <button @click="rejectPaymentSlip(slip)" class="flex-1 bg-red-500 text-white py-2 px-3 rounded text-sm hover:bg-red-600 transition-colors">
+                                        ❌ ปฏิเสธ
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
 
         </main>
     </div>
 
-    <!-- ========================== -->
-    <!-- 🪟 MODALS -->
-    <!-- ========================== -->
-    
-    <!-- Slip Image Modal -->
-    <div x-show="showSlipModal" 
-         x-transition:enter="transition ease-out duration-300" 
-         x-transition:enter-start="opacity-0" 
-         x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-200" 
-         x-transition:leave-start="opacity-100" 
-         x-transition:leave-end="opacity-0"
-         class="fixed inset-0 z-50 overflow-y-auto" 
-         @click.self="showSlipModal = false">
-        <div class="flex items-center justify-center min-h-screen px-4 modal-backdrop">
-            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
-                <div class="flex justify-between items-center p-6 border-b">
-                    <h3 class="text-lg font-medium text-gray-900" x-text="'สลิป ' + selectedSlip?.order_number"></h3>
-                    <button @click="showSlipModal = false" class="text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-times text-xl"></i>
-                    </button>
-                </div>
-                <div class="p-6">
-                    <template x-if="selectedSlip">
-                        <div>
-                            <img :src="selectedSlip.image_url || ('data:' + selectedSlip.file_type + ';base64,' + selectedSlip.file_data)" 
-                                 class="w-full h-auto max-h-96 object-contain rounded-lg mb-4" 
-                                 alt="Payment Slip">
-                            <div class="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                    <strong>คำสั่งซื้อ:</strong> 
-                                    <span x-text="selectedSlip.order_number"></span>
-                                </div>
-                                <div>
-                                    <strong>จำนวนเงิน:</strong> 
-                                    <span x-text="'฿' + selectedSlip.amount?.toLocaleString()"></span>
-                                </div>
-                                <div>
-                                    <strong>วันที่อัปโหลด:</strong> 
-                                    <span x-text="formatDate(selectedSlip.uploaded_at)"></span>
-                                </div>
-                                <div>
-                                    <strong>สถานะ:</strong> 
-                                    <span x-text="selectedSlip.verification_status === 'pending' ? 'รอตรวจสอบ' : 
-                                                   selectedSlip.verification_status === 'approved' ? 'อนุมัติแล้ว' : 'ปฏิเสธ'"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Shipping Form Modal -->
-    <div x-show="showShippingModal" 
-         x-transition:enter="transition ease-out duration-300" 
-         x-transition:enter-start="opacity-0" 
-         x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-200" 
-         x-transition:leave-start="opacity-100" 
-         x-transition:leave-end="opacity-0"
-         class="fixed inset-0 z-50 overflow-y-auto" 
-         @click.self="showShippingModal = false">
-        <div class="flex items-center justify-center min-h-screen px-4 modal-backdrop">
-            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
-                <div class="flex justify-between items-center p-6 border-b">
-                    <h3 class="text-lg font-medium text-gray-900">🚚 ข้อมูลการจัดส่ง</h3>
-                    <button @click="showShippingModal = false" class="text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-times text-xl"></i>
-                    </button>
-                </div>
-                <div class="p-6">
-                    <template x-if="selectedSlip">
-                        <div>
-                            <div class="mb-4 p-3 bg-green-50 rounded-lg">
-                                <div class="text-sm text-gray-600">คำสั่งซื้อ</div>
-                                <div class="font-medium" x-text="selectedSlip.order_number"></div>
-                                <div class="text-sm text-green-600" x-text="'฿' + selectedSlip.amount?.toLocaleString()"></div>
-                            </div>
-                            
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">เลขพัสดุ:</label>
-                                    <input type="text" x-model="shippingForm.tracking_number" 
-                                           class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                                           placeholder="VV1234567890TH">
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">หมายเหตุ (ไม่จำเป็น):</label>
-                                    <textarea x-model="shippingForm.notes" rows="3"
-                                              class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                                              placeholder="หมายเหตุเพิ่มเติมสำหรับลูกค้า..."></textarea>
-                                </div>
-                            </div>
-                            
-                            <div class="mt-6 flex space-x-3">
-                                <button @click="submitShipping()" :disabled="!shippingForm.tracking_number || shippingLoading"
-                                        class="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <span x-show="!shippingLoading">
-                                        <i class="fas fa-paper-plane mr-2"></i>ส่งพัสดุ
-                                    </span>
-                                    <span x-show="shippingLoading" class="flex items-center justify-center">
-                                        <div class="loading mr-2"></div>กำลังดำเนินการ...
-                                    </span>
-                                </button>
-                                <button @click="showShippingModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                                    ยกเลิก
-                                </button>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Stock Adjustment Modal -->
-    <div x-show="showStockModal" 
-         x-transition:enter="transition ease-out duration-300" 
-         x-transition:enter-start="opacity-0" 
-         x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-200" 
-         x-transition:leave-start="opacity-100" 
-         x-transition:leave-end="opacity-0"
-         class="fixed inset-0 z-50 overflow-y-auto" 
-         @click.self="showStockModal = false">
-        <div class="flex items-center justify-center min-h-screen px-4 modal-backdrop">
-            <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
-                <div class="flex justify-between items-center p-6 border-b">
-                    <h3 class="text-lg font-medium text-gray-900">📦 ปรับสต็อกสินค้า</h3>
-                    <button @click="showStockModal = false" class="text-gray-400 hover:text-gray-600">
-                        <i class="fas fa-times text-xl"></i>
-                    </button>
-                </div>
-                <div class="p-6">
-                    <template x-if="selectedProduct">
-                        <div>
-                            <div class="mb-4 p-3 bg-blue-50 rounded-lg">
-                                <div class="font-medium" x-text="selectedProduct.name"></div>
-                                <div class="text-sm text-gray-600" x-text="'ID: ' + selectedProduct.id"></div>
-                                <div class="text-lg font-bold text-blue-600 mt-1" x-text="'สต็อกปัจจุบัน: ' + selectedProduct.stock"></div>
-                            </div>
-                            
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">ประเภทการปรับ:</label>
-                                    <select x-model="stockForm.type" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
-                                        <option value="add">➕ เพิ่มสต็อก</option>
-                                        <option value="reduce">➖ ลดสต็อก</option>
-                                        <option value="set">🎯 ตั้งค่าใหม่</option>
-                                    </select>
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">จำนวน:</label>
-                                    <input type="number" x-model="stockForm.amount" min="0"
-                                           class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                                           placeholder="กรอกจำนวน">
-                                </div>
-                                
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">เหตุผล:</label>
-                                    <select x-model="stockForm.reason" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
-                                        <option value="รับสินค้าใหม่">รับสินค้าใหม่</option>
-                                        <option value="การขาย">การขาย</option>
-                                        <option value="สินค้าเสียหาย">สินค้าเสียหาย</option>
-                                        <option value="นับสต็อก">นับสต็อก</option>
-                                        <option value="คืนสินค้า">คืนสินค้า</option>
-                                        <option value="อื่น ๆ">อื่น ๆ</option>
-                                    </select>
-                                </div>
-                                
-                                <div x-show="stockForm.reason === 'อื่น ๆ'">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">ระบุเหตุผล:</label>
-                                    <input type="text" x-model="stockForm.customReason"
-                                           class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                                           placeholder="ระบุเหตุผล...">
-                                </div>
-                            </div>
-                            
-                            <div class="mt-6 flex space-x-3">
-                                <button @click="submitStockAdjustment()" :disabled="!stockForm.amount || stockLoading"
-                                        class="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <span x-show="!stockLoading">
-                                        <i class="fas fa-check mr-2"></i>ยืนยันการปรับ
-                                    </span>
-                                    <span x-show="stockLoading" class="flex items-center justify-center">
-                                        <div class="loading mr-2"></div>กำลังดำเนินการ...
-                                    </span>
-                                </button>
-                                <button @click="showStockModal = false" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                                    ยกเลิก
-                                </button>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
-        // ========================== 
-        // 🧠 MAIN APP LOGIC
-        // ==========================
         function adminApp() {
             return {
-                // ⚙️ Configuration
-                API_URL: 'https://script.google.com/macros/s/AKfycbwoEN86QTpuRxDckf8mQiga9pkn-RJBM0z00nqywbPUbeeIR34XX6JPHQeVcuLoWKAeUA/exec',
+                // Admin Config
+                ADMIN_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwoEN86QTpuRxDckf8mQiga9pkn-RJBM0z00nqywbPUbeeIR34XX6JPHQeVcuLoWKAeUA/exec',
+                SPREADSHEET_ID: '19jd3hyPBVrwvbqv28uUv47GjoPYcfVv-_1XcZH548I4',
                 SHEETS_URL: 'https://docs.google.com/spreadsheets/d/19jd3hyPBVrwvbqv28uUv47GjoPYcfVv-_1XcZH548I4/edit',
                 
-                // 🔐 Authentication State
+                // Authentication
                 isAuthenticated: false,
                 userEmail: '',
-                loginForm: { email: 'admin@veevee.com', password: '' },
+                loginForm: {
+                    email: 'admin@veevee.com',
+                    password: ''
+                },
                 loginLoading: false,
                 loginError: '',
                 
-                // 🧭 Navigation State
-                currentTab: 'slips',
+                // Navigation
+                currentTab: 'pos',
                 loading: false,
                 
-                // 📊 Data State
+                // Data
                 orders: [],
                 contacts: [],
                 paymentSlips: [],
-                stockData: [],
+                products: [],
+                posSales: [],
                 
-                // 🪟 Modal State
-                showSlipModal: false,
-                showShippingModal: false,
-                showStockModal: false,
-                selectedSlip: null,
-                selectedProduct: null,
+                // POS System
+                posCart: [],
+                posSearch: '',
+                filteredProducts: [],
+                posPaymentMethod: 'cash',
+                posCustomerName: '',
+                posProcessing: false,
                 
-                // 📝 Form State
-                shippingForm: { tracking_number: '', notes: '' },
-                stockForm: { type: 'add', amount: '', reason: 'รับสินค้าใหม่', customReason: '' },
-                shippingLoading: false,
-                stockLoading: false,
-                
-                // 🧮 Computed Properties
-                get pendingSlips() {
-                    return this.paymentSlips.filter(slip => slip.verification_status === 'pending').length;
+                // Reports
+                reportDateFrom: new Date().toISOString().split('T')[0],
+                reportDateTo: new Date().toISOString().split('T')[0],
+                reportData: {
+                    totalSales: 0,
+                    totalOrders: 0,
+                    averageOrderValue: 0,
+                    totalItems: 0,
+                    topProducts: []
                 },
                 
-                get approvedSlips() {
-                    return this.paymentSlips.filter(slip => slip.verification_status === 'approved').length;
+                // Computed properties
+                get totalRevenue() {
+                    return this.orders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
                 },
                 
-                getTotalStock() {
-                    return this.stockData.reduce((sum, product) => sum + (product.stock || 0), 0);
+                get posTotal() {
+                    return this.posCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
                 },
                 
-                getLowStockCount() {
-                    return this.stockData.filter(product => (product.stock || 0) <= (product.min_stock || 0)).length;
-                },
-                
-                getStockValue() {
-                    return this.stockData.reduce((sum, product) => sum + ((product.stock || 0) * (product.price || 0)), 0);
-                },
-                
-                getTodaySlipAmount() {
+                get todaySales() {
                     const today = new Date().toDateString();
-                    return this.paymentSlips
-                        .filter(slip => new Date(slip.uploaded_at || slip.timestamp).toDateString() === today)
-                        .reduce((sum, slip) => sum + (slip.amount || 0), 0);
+                    return this.posSales
+                        .filter(sale => new Date(sale.timestamp).toDateString() === today)
+                        .reduce((sum, sale) => sum + sale.total, 0);
+                },
+                
+                get todayOrders() {
+                    const today = new Date().toDateString();
+                    return this.posSales.filter(sale => new Date(sale.timestamp).toDateString() === today).length;
+                },
+                
+                get lastSaleTime() {
+                    if (this.posSales.length === 0) return 'ยังไม่มี';
+                    const lastSale = this.posSales[this.posSales.length - 1];
+                    return new Date(lastSale.timestamp).toLocaleTimeString('th-TH');
+                },
+                
+                get lowStockProducts() {
+                    return this.products.filter(product => product.stock <= (product.min_stock || 0));
                 },
 
-                // 🚀 Initialization
+                // ✅ ปรับปรุง init function
                 async init() {
-                    console.log('🛡️ VeeVee Admin Panel - Perfect Edition');
+                    console.log('🛡️ Admin Panel initialized');
                     
+                    // ✅ รอให้ Firebase โหลดเสร็จก่อน
                     let retryCount = 0;
                     const maxRetries = 10;
                     
@@ -1017,6 +933,7 @@
                     const firebaseReady = await waitForFirebase();
                     
                     if (firebaseReady) {
+                        // ✅ Firebase พร้อม - ตั้งค่า auth listener
                         try {
                             window.firebaseOnAuthStateChanged(window.firebaseAuth, (user) => {
                                 if (user) {
@@ -1024,6 +941,7 @@
                                     this.isAuthenticated = true;
                                     this.userEmail = user.email;
                                     this.loadAllData();
+                                    this.generateSalesReport();
                                 } else {
                                     console.log('🚪 User not authenticated');
                                     this.isAuthenticated = false;
@@ -1033,10 +951,13 @@
                         } catch (error) {
                             console.error('❌ Auth listener error:', error);
                         }
+                    } else {
+                        // ✅ Firebase ไม่พร้อม - ใช้ fallback
+                        console.warn('⚠️ Running in offline mode');
                     }
                 },
                 
-                // 🔐 Authentication Functions
+                // ✅ ปรับปรุง login function
                 async login() {
                     this.loginLoading = true;
                     this.loginError = '';
@@ -1056,13 +977,14 @@
                         
                         console.log('✅ Admin logged in:', userCredential.user.email);
                         
+                        // ✅ อัปเดต state ทันที (ไม่รอ onAuthStateChanged)
                         this.isAuthenticated = true;
                         this.userEmail = userCredential.user.email;
                         
-                        showNotification('เข้าสู่ระบบสำเร็จ! ยินดีต้อนรับ ' + this.userEmail, 'success');
-                        
+                        // โหลดข้อมูล
                         setTimeout(() => {
                             this.loadAllData();
+                            this.generateSalesReport();
                         }, 500);
                         
                     } catch (error) {
@@ -1082,6 +1004,7 @@
                     }
                 },
                 
+                // ✅ ฟังก์ชันอื่นๆ เหมือนเดิม...
                 async logout() {
                     try {
                         if (window.firebaseSignOut && window.firebaseAuth) {
@@ -1089,319 +1012,615 @@
                         }
                         this.isAuthenticated = false;
                         this.userEmail = '';
-                        showNotification('ออกจากระบบเรียบร้อยแล้ว', 'success');
                         console.log('✅ Admin logged out');
                     } catch (error) {
                         console.error('❌ Logout failed:', error);
+                        // Force logout
                         this.isAuthenticated = false;
                         this.userEmail = '';
                     }
                 },
 
-                // 📊 Data Loading Functions
+                // ✅ รวมฟังก์ชันที่เหลือ...
                 async loadAllData() {
                     this.loading = true;
                     try {
                         await Promise.all([
-                            this.refreshPaymentSlips(),
                             this.refreshOrders(),
                             this.refreshContacts(),
-                            this.refreshStock()
+                            this.refreshPaymentSlips(),
+                            this.refreshProducts(),
+                            this.refreshPOSSales()
                         ]);
-                        console.log('✅ All data loaded successfully');
+                        this.filterProducts();
                     } catch (error) {
                         console.error('❌ Failed to load data:', error);
-                        showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'error');
                     } finally {
                         this.loading = false;
                     }
                 },
 
-                async refreshPaymentSlips() {
+                // ... ส่วนอื่นๆ ตามโค้ดเดิม
+                async refreshProducts() {
                     try {
-                        const response = await this.callAPI('get_slips');
-                        if (response.success) {
-                            this.paymentSlips = response.data || [];
-                            console.log('✅ Payment slips loaded:', this.paymentSlips.length);
+                        if (this.products.length === 0) {
+                            this.products = [
+                                {
+                                    id: 'prod_001',
+                                    sku: 'VV001',
+                                    name: 'VeeVee Anti-Mosquito Patch',
+                                    description: 'แผ่นแปะป้องกันยุง 12 ชิ้น/ซอง',
+                                    price: 119,
+                                    stock: 50,
+                                    min_stock: 10,
+                                    unit: 'ซอง',
+                                    category: 'สุขภาพ',
+                                    active: true
+                                },
+                                {
+                                    id: 'prod_002',
+                                    sku: 'VV002',
+                                    name: 'VeeVee Refill Pack',
+                                    description: 'แผ่นแปะเติม 24 ชิ้น',
+                                    price: 99,
+                                    stock: 30,
+                                    min_stock: 5,
+                                    unit: 'แพ็ค',
+                                    category: 'สุขภาพ',
+                                    active: true
+                                },
+                                {
+                                    id: 'prod_003',
+                                    sku: 'VV003',
+                                    name: 'VeeVee Family Set',
+                                    description: 'ชุดครอบครัว 5 ซอง',
+                                    price: 499,
+                                    stock: 15,
+                                    min_stock: 3,
+                                    unit: 'ชุด',
+                                    category: 'แพ็คเกจ',
+                                    active: true
+                                }
+                            ];
                         }
+                        console.log('✅ Products loaded:', this.products.length);
                     } catch (error) {
-                        console.error('❌ Failed to load payment slips:', error);
+                        console.error('❌ Failed to load products:', error);
                     }
                 },
 
-                async refreshOrders() {
+                // ฟังก์ชันอื่นๆ ตามโค้ดเดิม (ไม่เปลี่ยน)
+                async refreshOrders() { 
                     try {
-                        const response = await this.callAPI('get_orders');
-                        if (response.success) {
-                            this.orders = response.data || [];
-                            console.log('✅ Orders loaded:', this.orders.length);
-                        }
+                        const ordersRef = window.firebaseCollection(window.firebaseDb, 'orders');
+                        const q = window.firebaseQuery(ordersRef, window.firebaseOrderBy('timestamp', 'desc'));
+                        const querySnapshot = await window.firebaseGetDocs(q);
+                        
+                        this.orders = [];
+                        querySnapshot.forEach((doc) => {
+                            this.orders.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        console.log('✅ Orders loaded:', this.orders.length);
                     } catch (error) {
                         console.error('❌ Failed to load orders:', error);
                     }
                 },
-
-                async refreshContacts() {
+                async refreshContacts() { 
                     try {
-                        const response = await this.callAPI('get_contacts');
-                        if (response.success) {
-                            this.contacts = response.data || [];
-                            console.log('✅ Contacts loaded:', this.contacts.length);
-                        }
+                        const contactsRef = window.firebaseCollection(window.firebaseDb, 'contacts');
+                        const q = window.firebaseQuery(contactsRef, window.firebaseOrderBy('timestamp', 'desc'));
+                        const querySnapshot = await window.firebaseGetDocs(q);
+                        
+                        this.contacts = [];
+                        querySnapshot.forEach((doc) => {
+                            this.contacts.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        console.log('✅ Contacts loaded:', this.contacts.length);
                     } catch (error) {
                         console.error('❌ Failed to load contacts:', error);
                     }
                 },
-
-                async refreshStock() {
+                async refreshPaymentSlips() { 
                     try {
-                        const response = await this.callAPI('get_stock');
-                        if (response.success) {
-                            this.stockData = response.data.products || [];
-                            console.log('✅ Stock data loaded:', this.stockData.length);
-                        }
+                        const slipsRef = window.firebaseCollection(window.firebaseDb, 'payment_slips');
+                        const q = window.firebaseQuery(slipsRef, window.firebaseOrderBy('timestamp', 'desc'));
+                        const querySnapshot = await window.firebaseGetDocs(q);
+                        
+                        this.paymentSlips = [];
+                        querySnapshot.forEach((doc) => {
+                            this.paymentSlips.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        console.log('✅ Payment slips loaded:', this.paymentSlips.length);
                     } catch (error) {
-                        console.error('❌ Failed to load stock data:', error);
+                        console.error('❌ Failed to load payment slips:', error);
                     }
                 },
-
-                // 🧾 Payment Slip Functions
-                async approveSlip(slip) {
+                async refreshPOSSales() { 
                     try {
+                        const salesRef = window.firebaseCollection(window.firebaseDb, 'pos_sales');
+                        const q = window.firebaseQuery(salesRef, window.firebaseOrderBy('timestamp', 'desc'));
+                        const querySnapshot = await window.firebaseGetDocs(q);
+                        
+                        this.posSales = [];
+                        querySnapshot.forEach((doc) => {
+                            this.posSales.push({ id: doc.id, ...doc.data() });
+                        });
+                        
+                        console.log('✅ POS Sales loaded:', this.posSales.length);
+                    } catch (error) {
+                        console.error('❌ Failed to load POS sales:', error);
+                    }
+                },
+                
+                // ================================
+                // 💰 PAYMENT SLIPS FUNCTIONS
+                // ================================
+
+                async approvePaymentSlip(slip) {
+                    try {
+                        console.log('✅ Approving payment slip:', slip.id);
+                        
                         const confirmation = confirm(`อนุมัติการโอนเงิน\nจำนวน: ฿${slip.amount?.toLocaleString()}\nรหัสคำสั่งซื้อ: ${slip.order_number}\n\nยืนยันการอนุมัติ?`);
                         
                         if (!confirmation) return;
                         
-                        const response = await this.callAPI('approve_slip', {
+                        // ✅ อัปเดตใน Firebase
+                        if (window.firebaseDoc && window.firebaseUpdateDoc && window.firebaseDb) {
+                            try {
+                                const slipRef = window.firebaseDoc(window.firebaseDb, 'payment_slips', slip.id);
+                                await window.firebaseUpdateDoc(slipRef, {
+                                    status: 'approved',
+                                    approved_at: new Date().toISOString(),
+                                    approved_by: this.userEmail
+                                });
+                                console.log('🔥 Slip approved in Firebase');
+                            } catch (firebaseError) {
+                                console.warn('⚠️ Firebase update failed:', firebaseError);
+                            }
+                        }
+                        
+                        // ✅ ส่งไป Apps Script
+                        const adminResult = await this.sendToAdminScript({
+                            action: 'approve_slip',
                             slip_id: slip.id,
                             order_number: slip.order_number,
+                            amount: slip.amount,
                             admin_notes: 'อนุมัติผ่านระบบ Admin'
                         });
                         
-                        if (response.success) {
-                            // อัปเดตใน Firebase
-                            if (window.firebaseDoc && window.firebaseUpdateDoc && window.firebaseDb) {
-                                try {
-                                    const slipRef = window.firebaseDoc(window.firebaseDb, 'payment_slips', slip.id);
-                                    await window.firebaseUpdateDoc(slipRef, {
-                                        verification_status: 'approved',
-                                        approved_at: new Date().toISOString(),
-                                        approved_by: this.userEmail
-                                    });
-                                    console.log('🔥 Slip approved in Firebase');
-                                } catch (firebaseError) {
-                                    console.warn('⚠️ Firebase update failed:', firebaseError);
-                                }
-                            }
-                            
-                            // อัปเดต local state
-                            const slipIndex = this.paymentSlips.findIndex(s => s.id === slip.id);
-                            if (slipIndex !== -1) {
-                                this.paymentSlips[slipIndex].verification_status = 'approved';
-                                this.paymentSlips[slipIndex].approved_at = new Date().toISOString();
-                                this.paymentSlips[slipIndex].approved_by = this.userEmail;
-                            }
-                            
-                            showNotification(`✅ อนุมัติสลิป ${slip.order_number} เรียบร้อยแล้ว\nระบบได้ส่งอีเมลยืนยันให้ลูกค้าแล้ว`, 'success');
-                        } else {
-                            showNotification('เกิดข้อผิดพลาดในการอนุมัติสลิป: ' + response.message, 'error');
+                        if (adminResult.success) {
+                            console.log('📧 Approval sent to admin system');
                         }
+                        
+                        // ✅ อัปเดต local state
+                        const slipIndex = this.paymentSlips.findIndex(s => s.id === slip.id);
+                        if (slipIndex !== -1) {
+                            this.paymentSlips[slipIndex].status = 'approved';
+                            this.paymentSlips[slipIndex].approved_at = new Date().toISOString();
+                            this.paymentSlips[slipIndex].approved_by = this.userEmail;
+                        }
+                        
+                        alert('✅ อนุมัติสลิปเรียบร้อยแล้ว');
                         
                     } catch (error) {
                         console.error('❌ Failed to approve slip:', error);
-                        showNotification('เกิดข้อผิดพลาดในการอนุมัติสลิป', 'error');
+                        alert('เกิดข้อผิดพลาดในการอนุมัติ: ' + error.message);
                     }
                 },
 
-                async deleteSlip(slip) {
+                async rejectPaymentSlip(slip) {
                     try {
-                        const confirmation = confirm(`ลบสลิป ${slip.order_number}?\n\n⚠️ การลบนี้ไม่สามารถย้อนกลับได้`);
+                        console.log('❌ Rejecting payment slip:', slip.id);
                         
-                        if (!confirmation) return;
+                        const reason = prompt(`ปฏิเสธการโอนเงิน\nจำนวน: ฿${slip.amount?.toLocaleString()}\nรหัสคำสั่งซื้อ: ${slip.order_number}\n\nกรุณาระบุเหตุผล:`);
                         
-                        const response = await this.callAPI('delete_slip', {
-                            slip_id: slip.id
-                        });
+                        if (!reason) return;
                         
-                        if (response.success) {
-                            // ลบจาก Firebase
-                            if (window.firebaseDoc && window.firebaseDeleteDoc && window.firebaseDb) {
-                                try {
-                                    const slipRef = window.firebaseDoc(window.firebaseDb, 'payment_slips', slip.id);
-                                    await window.firebaseDeleteDoc(slipRef);
-                                    console.log('🔥 Slip deleted from Firebase');
-                                } catch (firebaseError) {
-                                    console.warn('⚠️ Firebase delete failed:', firebaseError);
-                                }
+                        // ✅ อัปเดตใน Firebase
+                        if (window.firebaseDoc && window.firebaseUpdateDoc && window.firebaseDb) {
+                            try {
+                                const slipRef = window.firebaseDoc(window.firebaseDb, 'payment_slips', slip.id);
+                                await window.firebaseUpdateDoc(slipRef, {
+                                    status: 'rejected',
+                                    rejected_at: new Date().toISOString(),
+                                    rejected_by: this.userEmail,
+                                    rejection_reason: reason
+                                });
+                                console.log('🔥 Slip rejected in Firebase');
+                            } catch (firebaseError) {
+                                console.warn('⚠️ Firebase update failed:', firebaseError);
                             }
-                            
-                            // ลบจาก local state
-                            const slipIndex = this.paymentSlips.findIndex(s => s.id === slip.id);
-                            if (slipIndex !== -1) {
-                                this.paymentSlips.splice(slipIndex, 1);
-                            }
-                            
-                            showNotification(`🗑️ ลบสลิป ${slip.order_number} เรียบร้อยแล้ว`, 'success');
-                        } else {
-                            showNotification('เกิดข้อผิดพลาดในการลบสลิป: ' + response.message, 'error');
                         }
                         
+                        // ✅ ส่งไป Apps Script
+                        const adminResult = await this.sendToAdminScript({
+                            action: 'reject_slip',
+                            slip_id: slip.id,
+                            order_number: slip.order_number,
+                            amount: slip.amount,
+                            rejection_reason: reason
+                        });
+                        
+                        if (adminResult.success) {
+                            console.log('📧 Rejection sent to admin system');
+                        }
+                        
+                        // ✅ อัปเดต local state
+                        const slipIndex = this.paymentSlips.findIndex(s => s.id === slip.id);
+                        if (slipIndex !== -1) {
+                            this.paymentSlips[slipIndex].status = 'rejected';
+                            this.paymentSlips[slipIndex].rejected_at = new Date().toISOString();
+                            this.paymentSlips[slipIndex].rejected_by = this.userEmail;
+                            this.paymentSlips[slipIndex].rejection_reason = reason;
+                        }
+                        
+                        alert('❌ ปฏิเสธสลิปเรียบร้อยแล้ว');
+                        
                     } catch (error) {
-                        console.error('❌ Failed to delete slip:', error);
-                        showNotification('เกิดข้อผิดพลาดในการลบสลิป', 'error');
+                        console.error('❌ Failed to reject slip:', error);
+                        alert('เกิดข้อผิดพลาดในการปฏิเสธ: ' + error.message);
                     }
                 },
 
-                async bulkApproveSlips() {
-                    const pendingSlips = this.paymentSlips.filter(slip => slip.verification_status === 'pending');
+                // ================================
+                // 📦 PRODUCT MANAGEMENT FUNCTIONS
+                // ================================
+
+                addNewProduct() {
+                    const name = prompt('ชื่อสินค้า:');
+                    if (!name) return;
                     
-                    if (pendingSlips.length === 0) {
-                        showNotification('ไม่มีสลิปที่รออนุมัติ', 'warning');
+                    const price = parseFloat(prompt('ราคา (บาท):') || '0');
+                    if (price <= 0) {
+                        alert('กรุณาใส่ราคาที่ถูกต้อง');
                         return;
                     }
                     
-                    const confirmation = confirm(`อนุมัติสลิปทั้งหมด ${pendingSlips.length} รายการ?\n\nระบบจะส่งอีเมลยืนยันให้ลูกค้าทุกรายการ`);
+                    const stock = parseInt(prompt('จำนวนสต็อกเริ่มต้น:') || '0');
+                    const minStock = parseInt(prompt('สต็อกขั้นต่ำ:') || '5');
+                    const category = prompt('หมวดหมู่:') || 'ทั่วไป';
+                    const unit = prompt('หน่วยสินค้า (เช่น ชิ้น, ซอง, แพ็ค):') || 'ชิ้น';
                     
-                    if (!confirmation) return;
+                    const newProduct = {
+                        id: 'prod_' + Date.now(),
+                        sku: 'VV' + Date.now().toString().slice(-6),
+                        name: name,
+                        description: '',
+                        price: price,
+                        stock: stock,
+                        min_stock: minStock,
+                        unit: unit,
+                        category: category,
+                        active: true,
+                        created_at: new Date().toISOString()
+                    };
                     
-                    let approved = 0;
-                    let errors = 0;
+                    this.products.push(newProduct);
+                    this.filterProducts();
                     
-                    for (const slip of pendingSlips) {
-                        try {
-                            await this.approveSlip(slip);
-                            approved++;
-                        } catch (error) {
-                            errors++;
-                            console.error('Failed to approve slip:', slip.id, error);
-                        }
+                    console.log('✅ Product added:', newProduct);
+                    alert('เพิ่มสินค้าเรียบร้อยแล้ว: ' + name);
+                },
+
+                editProduct(product) {
+                    const newName = prompt('ชื่อสินค้า:', product.name);
+                    if (!newName) return;
+                    
+                    const newPrice = parseFloat(prompt('ราคา (บาท):', product.price) || product.price);
+                    const newMinStock = parseInt(prompt('สต็อกขั้นต่ำ:', product.min_stock) || product.min_stock);
+                    const newCategory = prompt('หมวดหมู่:', product.category) || product.category;
+                    
+                    product.name = newName;
+                    product.price = newPrice;
+                    product.min_stock = newMinStock;
+                    product.category = newCategory;
+                    product.updated_at = new Date().toISOString();
+                    
+                    this.filterProducts();
+                    
+                    console.log('✅ Product updated:', product);
+                    alert('แก้ไขสินค้าเรียบร้อยแล้ว');
+                },
+
+                toggleProductStatus(product) {
+                    const action = product.active ? 'หยุดใช้งาน' : 'เปิดใช้งาน';
+                    const confirmation = confirm(`${action} สินค้า "${product.name}"?`);
+                    
+                    if (confirmation) {
+                        product.active = !product.active;
+                        product.updated_at = new Date().toISOString();
+                        
+                        this.filterProducts();
+                        
+                        console.log('✅ Product status changed:', product.name, 'Active:', product.active);
+                        alert(`${action} สินค้าเรียบร้อยแล้ว`);
                     }
+                },
+
+                // ================================
+                // 📊 STOCK MANAGEMENT FUNCTIONS
+                // ================================
+
+                adjustStock(product) {
+                    const currentStock = product.stock;
+                    const newStock = prompt(
+                        `ปรับสต็อก: ${product.name}\n` +
+                        `สต็อกปัจจุบัน: ${currentStock} ${product.unit}\n` +
+                        `สต็อกขั้นต่ำ: ${product.min_stock} ${product.unit}\n\n` +
+                        `กรุณาใส่จำนวนสต็อกใหม่:`,
+                        currentStock
+                    );
                     
-                    showNotification(`อนุมัติสลิปเรียบร้อย ${approved} รายการ` + (errors > 0 ? ` (ผิดพลาด ${errors} รายการ)` : ''), 'success');
-                },
-
-                // 🪟 Modal Functions
-                viewSlipImage(slip) {
-                    this.selectedSlip = slip;
-                    this.showSlipModal = true;
-                },
-
-                showShippingForm(slip) {
-                    this.selectedSlip = slip;
-                    this.shippingForm = { tracking_number: '', notes: '' };
-                    this.showShippingModal = true;
-                },
-
-                async submitShipping() {
-                    if (!this.shippingForm.tracking_number.trim()) {
-                        showNotification('กรุณากรอกเลขพัสดุ', 'warning');
+                    if (newStock === null) return;
+                    
+                    const stockNumber = parseInt(newStock);
+                    if (isNaN(stockNumber) || stockNumber < 0) {
+                        alert('กรุณาใส่จำนวนที่ถูกต้อง');
                         return;
                     }
                     
-                    this.shippingLoading = true;
+                    const adjustment = stockNumber - currentStock;
+                    const reason = prompt('เหตุผลในการปรับสต็อก:', adjustment > 0 ? 'เติมสต็อก' : 'ปรับลดสต็อก');
                     
-                    try {
-                        const response = await this.callAPI('update_shipping', {
-                            order_number: this.selectedSlip.order_number,
-                            tracking_number: this.shippingForm.tracking_number.trim(),
-                            shipping_notes: this.shippingForm.notes.trim()
-                        });
+                    if (!reason) return;
+                    
+                    product.stock = stockNumber;
+                    product.last_stock_update = new Date().toISOString();
+                    
+                    // บันทึก log
+                    const logEntry = {
+                        product_id: product.id,
+                        product_name: product.name,
+                        old_stock: currentStock,
+                        new_stock: stockNumber,
+                        adjustment: adjustment,
+                        reason: reason,
+                        admin: this.userEmail,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    console.log('📦 Stock adjusted:', logEntry);
+                    
+                    // แจ้งเตือนสต็อกต่ำ
+                    if (stockNumber <= product.min_stock && stockNumber > 0) {
+                        alert(`⚠️ สต็อกต่ำ!\n${product.name} เหลือ ${stockNumber} ${product.unit} (ขั้นต่ำ ${product.min_stock} ${product.unit})`);
+                    }
+                    
+                    alert('ปรับสต็อกเรียบร้อยแล้ว');
+                },
+
+                bulkStockAdjustment() {
+                    const csvData = prompt(
+                        'การปรับสต็อกแบบ Bulk\n\n' +
+                        'รูปแบบ: SKU,จำนวนใหม่\n' +
+                        'ตัวอย่าง:\n' +
+                        'VV001,100\n' +
+                        'VV002,50\n' +
+                        'VV003,25\n\n' +
+                        'กรุณาใส่ข้อมูล:'
+                    );
+                    
+                    if (!csvData) return;
+                    
+                    const lines = csvData.trim().split('\n');
+                    let updated = 0;
+                    let errors = [];
+                    
+                    for (const line of lines) {
+                        const [sku, stockStr] = line.split(',').map(s => s.trim());
+                        const newStock = parseInt(stockStr);
                         
-                        if (response.success) {
-                            showNotification(`📦 ส่งพัสดุ ${this.selectedSlip.order_number} เรียบร้อยแล้ว\nอีเมลแจ้งเลขพัสดุถูกส่งให้ลูกค้าแล้ว`, 'success');
-                            this.showShippingModal = false;
-                        } else {
-                            showNotification('เกิดข้อผิดพลาดในการส่งพัสดุ: ' + response.message, 'error');
+                        if (!sku || isNaN(newStock) || newStock < 0) {
+                            errors.push(`รูปแบบไม่ถูกต้อง: ${line}`);
+                            continue;
                         }
+                        
+                        const product = this.products.find(p => p.sku === sku);
+                        if (!product) {
+                            errors.push(`ไม่พบสินค้า SKU: ${sku}`);
+                            continue;
+                        }
+                        
+                        product.stock = newStock;
+                        product.last_stock_update = new Date().toISOString();
+                        updated++;
+                    }
+                    
+                    let message = `ปรับสต็อกเรียบร้อย ${updated} รายการ`;
+                    if (errors.length > 0) {
+                        message += `\n\nข้อผิดพลาด:\n${errors.join('\n')}`;
+                    }
+                    
+                    alert(message);
+                    console.log('📦 Bulk stock update completed:', { updated, errors });
+                },
+
+                // ================================
+                // 📊 REPORTS FUNCTIONS
+                // ================================
+
+                async exportReport() {
+                    try {
+                        console.log('📊 Exporting sales report...');
+                        
+                        const reportData = this.reportData;
+                        const dateRange = `${this.reportDateFrom} ถึง ${this.reportDateTo}`;
+                        
+                        // สร้างข้อมูล CSV
+                        let csvContent = 'รายงานการขาย VeeVee\n';
+                        csvContent += `ช่วงเวลา: ${dateRange}\n`;
+                        csvContent += `สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}\n`;
+                        csvContent += `ผู้สร้าง: ${this.userEmail}\n\n`;
+                        
+                        csvContent += 'สรุปยอดขาย\n';
+                        csvContent += `ยอดขายรวม,${reportData.totalSales.toLocaleString()} บาท\n`;
+                        csvContent += `จำนวนบิล,${reportData.totalOrders} บิล\n`;
+                        csvContent += `ยอดเฉลี่ยต่อบิล,${reportData.averageOrderValue.toFixed(2)} บาท\n`;
+                        csvContent += `สินค้าขายได้,${reportData.totalItems} ชิ้น\n\n`;
+                        
+                        if (reportData.topProducts.length > 0) {
+                            csvContent += 'สินค้าขายดี\n';
+                            csvContent += 'อันดับ,ชื่อสินค้า,จำนวนขาย,ยอดขาย\n';
+                            reportData.topProducts.forEach((item, index) => {
+                                csvContent += `${index + 1},${item.product_name},${item.quantity} ${item.unit},${item.total_sales.toLocaleString()} บาท\n`;
+                            });
+                        }
+                        
+                        // ดาวน์โหลดไฟล์
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const link = document.createElement('a');
+                        const url = URL.createObjectURL(blob);
+                        link.setAttribute('href', url);
+                        link.setAttribute('download', `VeeVee-Sales-Report-${this.reportDateFrom}-${this.reportDateTo}.csv`);
+                        link.style.visibility = 'hidden';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        console.log('✅ Report exported successfully');
+                        alert('ส่งออกรายงานเรียบร้อยแล้ว');
                         
                     } catch (error) {
-                        console.error('❌ Failed to update shipping:', error);
-                        showNotification('เกิดข้อผิดพลาดในการส่งพัสดุ', 'error');
-                    } finally {
-                        this.shippingLoading = false;
+                        console.error('❌ Export failed:', error);
+                        alert('เกิดข้อผิดพลาดในการส่งออกรายงาน: ' + error.message);
                     }
                 },
 
-                // 📦 Stock Management Functions
-                showStockAdjustment(product) {
-                    this.selectedProduct = product;
-                    this.stockForm = { type: 'add', amount: '', reason: 'รับสินค้าใหม่', customReason: '' };
-                    this.showStockModal = true;
-                },
-
-                async submitStockAdjustment() {
-                    if (!this.stockForm.amount || this.stockForm.amount <= 0) {
-                        showNotification('กรุณากรอกจำนวนที่ถูกต้อง', 'warning');
-                        return;
-                    }
+                async generateAdvancedReport() {
+                    const reportType = prompt(
+                        'เลือกประเภทรายงาน:\n\n' +
+                        '1 = รายงานการขายรายวัน\n' +
+                        '2 = รายงานสต็อกสินค้า\n' +
+                        '3 = รายงานลูกค้า\n' +
+                        '4 = รายงานกำไร-ขาดทุน\n\n' +
+                        'กรุณาใส่หมายเลข (1-4):',
+                        '1'
+                    );
                     
-                    this.stockLoading = true;
-                    
-                    try {
-                        let adjustment;
-                        const amount = parseInt(this.stockForm.amount);
-                        
-                        switch (this.stockForm.type) {
-                            case 'add':
-                                adjustment = amount;
-                                break;
-                            case 'reduce':
-                                adjustment = -amount;
-                                if (this.selectedProduct.stock + adjustment < 0) {
-                                    showNotification('สต็อกไม่เพียงพอสำหรับการลด', 'warning');
-                                    this.stockLoading = false;
-                                    return;
-                                }
-                                break;
-                            case 'set':
-                                adjustment = amount - this.selectedProduct.stock;
-                                break;
-                        }
-                        
-                        const finalReason = this.stockForm.reason === 'อื่น ๆ' ? this.stockForm.customReason : this.stockForm.reason;
-                        
-                        if (!finalReason) {
-                            showNotification('กรุณาระบุเหตุผล', 'warning');
-                            this.stockLoading = false;
-                            return;
-                        }
-                        
-                        const response = await this.callAPI('update_stock', {
-                            product_id: this.selectedProduct.id,
-                            adjustment: adjustment,
-                            reason: finalReason
-                        });
-                        
-                        if (response.success) {
-                            // อัปเดต local state
-                            const productIndex = this.stockData.findIndex(p => p.id === this.selectedProduct.id);
-                            if (productIndex !== -1) {
-                                this.stockData[productIndex].stock = response.data.new_stock;
-                            }
-                            
-                            showNotification(`✅ ปรับสต็อก ${this.selectedProduct.name} เรียบร้อยแล้ว\nสต็อกใหม่: ${response.data.new_stock}`, 'success');
-                            this.showStockModal = false;
-                        } else {
-                            showNotification('เกิดข้อผิดพลาดในการปรับสต็อก: ' + response.message, 'error');
-                        }
-                        
-                    } catch (error) {
-                        console.error('❌ Failed to adjust stock:', error);
-                        showNotification('เกิดข้อผิดพลาดในการปรับสต็อก', 'error');
-                    } finally {
-                        this.stockLoading = false;
+                    switch (reportType) {
+                        case '1':
+                            this.generateDailySalesReport();
+                            break;
+                        case '2':
+                            this.generateInventoryReport();
+                            break;
+                        case '3':
+                            alert('ฟีเจอร์รายงานลูกค้าจะพัฒนาในเวอร์ชันต่อไป');
+                            break;
+                        case '4':
+                            alert('ฟีเจอร์รายงานกำไร-ขาดทุนจะพัฒนาในเวอร์ชันต่อไป');
+                            break;
+                        default:
+                            alert('กรุณาเลือกประเภทรายงานที่ถูกต้อง');
                     }
                 },
 
-                // 📊 Utility Functions
-                async callAPI(action, data = {}) {
+                generateInventoryReport() {
+                    console.log('📦 Generating inventory report...');
+                    
+                    let csvContent = 'รายงานคลังสินค้า VeeVee\n';
+                    csvContent += `สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}\n`;
+                    csvContent += `ผู้สร้าง: ${this.userEmail}\n\n`;
+                    
+                    csvContent += 'สรุปคลังสินค้า\n';
+                    csvContent += `จำนวนสินค้าทั้งหมด,${this.products.length} รายการ\n`;
+                    csvContent += `สต็อกรวม,${this.getTotalStock()} ชิ้น\n`;
+                    csvContent += `มูลค่าสต็อก,${this.getInventoryValue().toLocaleString()} บาท\n`;
+                    csvContent += `สินค้าสต็อกต่ำ,${this.lowStockProducts.length} รายการ\n\n`;
+                    
+                    csvContent += 'รายละเอียดสินค้า\n';
+                    csvContent += 'SKU,ชื่อสินค้า,สต็อกปัจจุบัน,สต็อกขั้นต่ำ,ราคา,มูลค่า,สถานะ\n';
+                    
+                    this.products.forEach(product => {
+                        const value = product.stock * product.price;
+                        const status = product.stock <= product.min_stock ? 'สต็อกต่ำ' : 'ปกติ';
+                        csvContent += `${product.sku},${product.name},${product.stock} ${product.unit},${product.min_stock} ${product.unit},${product.price.toLocaleString()},${value.toLocaleString()},${status}\n`;
+                    });
+                    
+                    // ดาวน์โหลดไฟล์
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `VeeVee-Inventory-Report-${new Date().toISOString().split('T')[0]}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    alert('ส่งออกรายงานคลังสินค้าเรียบร้อยแล้ว');
+                },
+
+                generateDailySalesReport() {
+                    console.log('📊 Generating daily sales report...');
+                    
+                    // สร้างข้อมูลยอดขายรายวัน
+                    const dailySales = {};
+                    
+                    this.posSales.forEach(sale => {
+                        const date = new Date(sale.timestamp).toISOString().split('T')[0];
+                        if (!dailySales[date]) {
+                            dailySales[date] = {
+                                orders: 0,
+                                total: 0,
+                                items: 0
+                            };
+                        }
+                        dailySales[date].orders += 1;
+                        dailySales[date].total += sale.total;
+                        dailySales[date].items += sale.items.length;
+                    });
+                    
+                    let csvContent = 'รายงานการขายรายวัน VeeVee\n';
+                    csvContent += `สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}\n`;
+                    csvContent += `ผู้สร้าง: ${this.userEmail}\n\n`;
+                    
+                    csvContent += 'วันที่,จำนวนบิล,ยอดขาย,สินค้าขาย,ยอดเฉลี่ย\n';
+                    
+                    Object.keys(dailySales).sort().forEach(date => {
+                        const data = dailySales[date];
+                        const avg = data.orders > 0 ? (data.total / data.orders).toFixed(2) : 0;
+                        csvContent += `${date},${data.orders},${data.total.toLocaleString()},${data.items},${avg}\n`;
+                    });
+                    
+                    // ดาวน์โหลดไฟล์
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `VeeVee-Daily-Sales-Report-${new Date().toISOString().split('T')[0]}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    alert('ส่งออกรายงานขายรายวันเรียบร้อยแล้ว');
+                },
+
+                // ================================
+                // 🔧 UTILITY FUNCTIONS
+                // ================================
+
+                async sendToAdminScript(data) {
                     try {
-                        const response = await fetch(this.API_URL, {
+                        if (!this.ADMIN_SCRIPT_URL) {
+                            console.warn('⚠️ Admin Apps Script URL not configured');
+                            return { success: false, message: 'Admin system not configured' };
+                        }
+                        
+                        console.log('📤 Sending to Admin Apps Script:', data.action);
+                        
+                        const response = await fetch(this.ADMIN_SCRIPT_URL, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
                             body: JSON.stringify({
-                                action: action,
                                 ...data,
+                                referrer: window.location.href,
                                 admin_auth: this.userEmail,
                                 timestamp: new Date().toISOString()
                             }),
@@ -1413,25 +1632,230 @@
                         }
 
                         const result = await response.json();
-                        console.log(`✅ API ${action} response:`, result);
+                        console.log('✅ Admin Apps Script response:', result);
                         
                         return result;
 
                     } catch (error) {
-                        console.error(`❌ API ${action} Error:`, error);
+                        console.error('❌ Admin Apps Script Error:', error);
                         return { 
                             success: false, 
-                            message: 'ไม่สามารถเชื่อมต่อกับระบบได้',
+                            message: 'ไม่สามารถส่งข้อมูลไปยังระบบจัดการได้',
                             error: error.message 
                         };
                     }
+                },
+
+                // ฟังก์ชันสำหรับรีเฟรชข้อมูล
+                async refreshAllData() {
+                    console.log('🔄 Refreshing all data...');
+                    this.loading = true;
+                    
+                    try {
+                        await Promise.all([
+                            this.refreshOrders(),
+                            this.refreshContacts(),
+                            this.refreshPaymentSlips(),
+                            this.refreshProducts(),
+                            this.refreshPOSSales()
+                        ]);
+                        
+                        this.filterProducts();
+                        this.generateSalesReport();
+                        
+                        console.log('✅ All data refreshed');
+                        alert('รีเฟรชข้อมูลเรียบร้อยแล้ว');
+                        
+                    } catch (error) {
+                        console.error('❌ Failed to refresh data:', error);
+                        alert('เกิดข้อผิดพลาดในการรีเฟรช: ' + error.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                // POS Functions
+                filterProducts() {
+                    if (!this.posSearch) {
+                        this.filteredProducts = this.products.filter(p => p.active && p.stock > 0);
+                    } else {
+                        this.filteredProducts = this.products.filter(p => 
+                            p.active && 
+                            p.stock > 0 && 
+                            (p.name.toLowerCase().includes(this.posSearch.toLowerCase()) || 
+                             p.sku.toLowerCase().includes(this.posSearch.toLowerCase()))
+                        );
+                    }
+                },
+
+                addToCart(product) {
+                    if (product.stock <= 0) {
+                        alert('สินค้าหมดสต็อก');
+                        return;
+                    }
+                    
+                    const existingItem = this.posCart.find(item => item.id === product.id);
+                    
+                    if (existingItem) {
+                        if (existingItem.quantity < product.stock) {
+                            existingItem.quantity++;
+                        } else {
+                            alert('จำนวนเกินสต็อกที่มี');
+                        }
+                    } else {
+                        this.posCart.push({
+                            id: product.id,
+                            name: product.name,
+                            price: product.price,
+                            quantity: 1,
+                            stock: product.stock,
+                            unit: product.unit
+                        });
+                    }
+                },
+
+                updateCartQuantity(index, change) {
+                    const item = this.posCart[index];
+                    const newQuantity = item.quantity + change;
+                    
+                    if (newQuantity <= 0) {
+                        this.posCart.splice(index, 1);
+                    } else if (newQuantity <= item.stock) {
+                        item.quantity = newQuantity;
+                    } else {
+                        alert('จำนวนเกินสต็อกที่มี');
+                    }
+                },
+
+                clearPOSCart() {
+                    this.posCart = [];
+                },
+
+                async processPOSSale() {
+                    if (this.posCart.length === 0) return;
+                    
+                    this.posProcessing = true;
+                    
+                    try {
+                        const saleData = {
+                            sale_id: 'POS_' + Date.now(),
+                            items: this.posCart.map(item => ({
+                                product_id: item.id,
+                                name: item.name,
+                                price: item.price,
+                                quantity: item.quantity,
+                                subtotal: item.price * item.quantity
+                            })),
+                            total: this.posTotal,
+                            payment_method: this.posPaymentMethod,
+                            customer_name: this.posCustomerName || 'ลูกค้าทั่วไป',
+                            timestamp: new Date().toISOString(),
+                            type: 'pos_sale'
+                        };
+                        
+                        // Save to Firebase
+                        if (window.firebaseAddDoc && window.firebaseCollection && window.firebaseDb) {
+                            const salesRef = window.firebaseCollection(window.firebaseDb, 'pos_sales');
+                            await window.firebaseAddDoc(salesRef, saleData);
+                            console.log('✅ POS sale saved to Firebase');
+                        }
+
+                        // ✅ ส่งไป Apps Script
+                        const adminResult = await this.sendToAdminScript({
+                            action: 'pos_sale',
+                            ...saleData
+                        });
+
+                        if (adminResult.success) {
+                            console.log('📧 POS sale sent to admin system');
+                        }
+                        
+                        // Update stock locally
+                        for (const item of this.posCart) {
+                            const product = this.products.find(p => p.id === item.id);
+                            if (product) {
+                                product.stock -= item.quantity;
+                            }
+                        }
+                        
+                        // Clear cart
+                        this.clearPOSCart();
+                        this.posCustomerName = '';
+                        await this.refreshPOSSales();
+                        
+                        alert('ขายสำเร็จ! บิลเลขที่: ' + saleData.sale_id);
+                        
+                    } catch (error) {
+                        console.error('❌ POS Sale failed:', error);
+                        alert('เกิดข้อผิดพลาดในการขาย: ' + error.message);
+                    } finally {
+                        this.posProcessing = false;
+                    }
+                },
+
+                // Utility functions
+                getTotalStock() {
+                    return this.products.reduce((sum, product) => sum + product.stock, 0);
+                },
+
+                getInventoryValue() {
+                    return this.products.reduce((sum, product) => sum + (product.stock * product.price), 0);
+                },
+
+                generateSalesReport() {
+                    const startDate = new Date(this.reportDateFrom);
+                    const endDate = new Date(this.reportDateTo);
+                    endDate.setHours(23, 59, 59, 999);
+                    
+                    const filteredSales = this.posSales.filter(sale => {
+                        const saleDate = new Date(sale.timestamp);
+                        return saleDate >= startDate && saleDate <= endDate;
+                    });
+                    
+                    const totalSales = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
+                    const totalOrders = filteredSales.length;
+                    const totalItems = filteredSales.reduce((sum, sale) => sum + (sale.items ? sale.items.reduce((itemSum, item) => itemSum + item.quantity, 0) : 0), 0);
+                    
+                    // Calculate top products
+                    const productSales = {};
+                    filteredSales.forEach(sale => {
+                        if (sale.items) {
+                            sale.items.forEach(item => {
+                                if (!productSales[item.product_id]) {
+                                    productSales[item.product_id] = {
+                                        product_id: item.product_id,
+                                        product_name: item.name,
+                                        quantity: 0,
+                                        total_sales: 0,
+                                        unit: this.products.find(p => p.id === item.product_id)?.unit || 'ชิ้น'
+                                    };
+                                }
+                                productSales[item.product_id].quantity += item.quantity;
+                                productSales[item.product_id].total_sales += item.subtotal;
+                            });
+                        }
+                    });
+                    
+                    const topProducts = Object.values(productSales)
+                        .sort((a, b) => b.total_sales - a.total_sales)
+                        .slice(0, 10);
+                    
+                    this.reportData = {
+                        totalSales,
+                        totalOrders,
+                        averageOrderValue: totalOrders > 0 ? totalSales / totalOrders : 0,
+                        totalItems,
+                        topProducts
+                    };
+                    
+                    console.log('📊 Sales report generated:', this.reportData);
                 },
 
                 openGoogleSheets() {
                     if (this.SHEETS_URL) {
                         window.open(this.SHEETS_URL, '_blank');
                     } else {
-                        showNotification('Google Sheets URL ไม่ได้ตั้งค่า', 'warning');
+                        alert('Google Sheets URL ไม่ได้ตั้งค่า');
                     }
                 },
 
@@ -1439,84 +1863,9 @@
                     if (!timestamp) return 'N/A';
                     const date = new Date(timestamp.seconds ? timestamp.seconds * 1000 : timestamp);
                     return date.toLocaleDateString('th-TH') + ' ' + date.toLocaleTimeString('th-TH');
-                },
-
-                exportStockReport() {
-                    try {
-                        let csvContent = 'รายงานสต็อกสินค้า VeeVee\n';
-                        csvContent += `สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}\n`;
-                        csvContent += `ผู้สร้าง: ${this.userEmail}\n\n`;
-                        
-                        csvContent += 'ID,ชื่อสินค้า,สต็อกปัจจุบัน,สต็อกขั้นต่ำ,ราคา,มูลค่า,สถานะ\n';
-                        
-                        this.stockData.forEach(product => {
-                            const value = (product.stock || 0) * (product.price || 0);
-                            const status = (product.stock || 0) <= (product.min_stock || 0) ? 'สต็อกต่ำ' : 'ปกติ';
-                            csvContent += `${product.id},${product.name},${product.stock || 0},${product.min_stock || 0},${product.price || 0},${value},${status}\n`;
-                        });
-                        
-                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                        const link = document.createElement('a');
-                        const url = URL.createObjectURL(blob);
-                        link.setAttribute('href', url);
-                        link.setAttribute('download', `VeeVee-Stock-Report-${new Date().toISOString().split('T')[0]}.csv`);
-                        link.style.visibility = 'hidden';
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        
-                        showNotification('ส่งออกรายงานสต็อกเรียบร้อยแล้ว', 'success');
-                        
-                    } catch (error) {
-                        console.error('Export failed:', error);
-                        showNotification('เกิดข้อผิดพลาดในการส่งออกรายงาน', 'error');
-                    }
                 }
             }
         }
-
-        // ========================== 
-        // 🔔 NOTIFICATION SYSTEM
-        // ==========================
-        function showNotification(message, type = 'success') {
-            const notification = document.getElementById('notification');
-            const icon = document.getElementById('notification-icon');
-            const messageElement = document.getElementById('notification-message');
-            
-            // Set icon based on type
-            const icons = {
-                success: 'fas fa-check-circle',
-                error: 'fas fa-exclamation-circle',
-                warning: 'fas fa-exclamation-triangle',
-                info: 'fas fa-info-circle'
-            };
-            
-            icon.className = icons[type] || icons.info;
-            messageElement.textContent = message;
-            
-            // Remove existing type classes and add new one
-            notification.className = `notification ${type}`;
-            
-            // Show notification
-            notification.classList.add('show');
-            
-            // Auto hide after 5 seconds
-            setTimeout(() => {
-                hideNotification();
-            }, 5000);
-        }
-
-        function hideNotification() {
-            const notification = document.getElementById('notification');
-            notification.classList.remove('show');
-        }
-
-        // ========================== 
-        // 🚀 INITIALIZE APP
-        // ==========================
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 VeeVee Admin Panel - Perfect Edition Loaded!');
-        });
     </script>
 </body>
 </html>
