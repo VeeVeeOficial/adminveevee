@@ -712,51 +712,236 @@
             </div>
 
             <!-- Orders Tab -->
-            <div x-show="currentTab === 'orders' && !loading">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold text-gray-900">คำสั่งซื้อ</h2>
-                    <button @click="refreshOrders()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
-                        <i class="fas fa-sync-alt mr-2"></i>รีเฟรช
-                    </button>
+<!-- Orders Tab -->
+<div x-show="currentTab === 'orders' && !loading">
+  <div class="flex justify-between items-center mb-6">
+    <h2 class="text-xl font-bold text-gray-900">คำสั่งซื้อออนไลน์</h2>
+    <div class="flex gap-3">
+      <button @click="fetchOnlineOrders()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+        <i class="fas fa-rotate mr-2"></i>รีเฟรช
+      </button>
+    </div>
+  </div>
+
+  <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-2 text-left text-xs font-semibold text-gray-500 uppercase">เลขที่</th>
+            <th class="px-6 py-2 text-left text-xs font-semibold text-gray-500 uppercase">ลูกค้า</th>
+            <th class="px-6 py-2 text-left text-xs font-semibold text-gray-500 uppercase">ที่อยู่จัดส่ง</th>
+            <th class="px-6 py-2 text-left text-xs font-semibold text-gray-500 uppercase">ชำระเงิน</th>
+            <th class="px-6 py-2 text-left text-xs font-semibold text-gray-500 uppercase">ยอดรวม</th>
+            <th class="px-6 py-2 text-left text-xs font-semibold text-gray-500 uppercase">สถานะ</th>
+            <th class="px-6 py-2 text-left text-xs font-semibold text-gray-500 uppercase">จัดส่ง</th>
+            <th class="px-6 py-2 text-left text-xs font-semibold text-gray-500 uppercase">จัดการ</th>
+          </tr>
+        </thead>
+
+        <tbody class="bg-white divide-y divide-gray-200">
+          <template x-for="order in onlineOrders" :key="order.id">
+            <tr class="hover:bg-gray-50 align-top">
+              <!-- เลขที่ -->
+              <td class="px-6 py-3">
+                <div class="flex flex-col space-y-1">
+                  <span class="text-sm font-semibold text-gray-900" x-text="order.order_number || order.id"></span>
+                  <span class="text-xs text-gray-500" x-text="formatDate(order.created_at || order.timestamp)"></span>
                 </div>
-                
-                <div class="bg-white shadow-sm rounded-lg overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เลขที่คำสั่งซื้อ</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ลูกค้า</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จำนวน</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ยอดรวม</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <template x-for="order in orders" :key="order.id">
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" x-text="order.customer_id || 'N/A'"></td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900" x-text="order.name"></div>
-                                            <div class="text-sm text-gray-500" x-text="order.email"></div>
-                                            <div class="text-sm text-gray-500" x-text="order.phone"></div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="order.quantity + ' ซอง'"></td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="'฿' + order.total_amount?.toLocaleString()"></td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="formatDate(order.created_at || order.timestamp)"></td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                                รอดำเนินการ
-                                            </span>
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
+              </td>
+
+              <!-- ลูกค้า -->
+              <td class="px-6 py-3">
+                <div class="flex flex-col space-y-1 text-sm">
+                  <span class="font-medium" x-text="order.customer?.name || order.customer_name || order.name || 'ไม่ระบุ'"></span>
+                  <span class="text-gray-500" x-text="order.customer?.email || order.email || ''"></span>
+                  <span class="text-gray-500" x-text="order.customer?.phone || order.phone || ''"></span>
                 </div>
+              </td>
+
+              <!-- ที่อยู่ -->
+              <td class="px-6 py-3">
+                <div class="text-sm flex flex-col space-y-2">
+                  <pre class="whitespace-pre-wrap leading-relaxed" x-text="formatAddress(order)"></pre>
+                  <button @click="copyToClipboard(formatAddress(order))" class="self-start text-xs text-blue-600 hover:underline">คัดลอกที่อยู่</button>
+                </div>
+              </td>
+
+              <!-- ชำระเงิน -->
+              <td class="px-6 py-3">
+                <div class="text-sm flex flex-col space-y-2">
+                  <span class="w-fit px-2 py-0.5 rounded-full text-xs font-semibold"
+                        :class="{
+                          'bg-green-100 text-green-800': (order.payment_status || '').toLowerCase()==='paid' || (order.status || '').toLowerCase()==='confirmed',
+                          'bg-yellow-100 text-yellow-800': !order.payment_status || (order.payment_status || '').toLowerCase()==='pending',
+                          'bg-red-100 text-red-800': (order.payment_status || '').toLowerCase()==='rejected' || (order.payment_status || '').toLowerCase()==='unpaid'
+                        }"
+                        x-text="(order.payment_status || order.status || 'pending')">
+                  </span>
+                  <span class="text-xs text-gray-500" x-text="'วิธี: ' + (order.payment_method || 'ไม่ระบุ')"></span>
+                  <div class="flex gap-2">
+                    <button @click="markPaid(order)" class="text-xs bg-green-50 text-green-700 px-2 py-1 rounded hover:bg-green-100">มาร์คจ่าย</button>
+                    <button @click="markUnpaid(order)" class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded hover:bg-gray-200">มาร์คค้าง</button>
+                  </div>
+                </div>
+              </td>
+
+              <!-- ยอดรวม -->
+              <td class="px-6 py-3">
+                <div class="text-sm font-semibold text-gray-900"
+                     x-text="'฿' + (Number(order.total) || Number(order.total_amount) || 0).toLocaleString()">
+                </div>
+              </td>
+
+              <!-- สถานะ -->
+              <td class="px-6 py-3">
+                <div class="text-sm flex flex-col space-y-2">
+                  <span class="w-fit px-2 py-0.5 rounded-full text-xs font-semibold"
+                        :class="{
+                          'bg-blue-100 text-blue-800': (order.status || 'pending')==='processing' || (order.status||'')==='confirmed',
+                          'bg-purple-100 text-purple-800': (order.status||'')==='packed',
+                          'bg-teal-100 text-teal-800': (order.status||'')==='shipped',
+                          'bg-green-100 text-green-800': (order.status||'')==='delivered',
+                          'bg-yellow-100 text-yellow-800': (order.status||'')==='pending',
+                          'bg-red-100 text-red-800': (order.status||'')==='cancelled' || (order.status||'')==='payment_rejected'
+                        }"
+                        x-text="order.status || 'pending'">
+                  </span>
+                  <select class="text-sm border rounded px-2 py-1"
+                          @change="updateOrderStatus(order, $event.target.value)">
+                    <template x-for="opt in statusOptions" :key="opt">
+                      <option :value="opt" :selected="(order.status || 'pending')===opt" x-text="opt"></option>
+                    </template>
+                  </select>
+                </div>
+              </td>
+
+              <!-- จัดส่ง -->
+              <td class="px-6 py-3">
+                <div class="text-sm flex flex-col space-y-2">
+                  <span class="font-medium"
+                        x-text="order.tracking_carrier ? (order.tracking_carrier + ' • ' + (order.tracking_number||'-')) : (order.tracking_number || '-')"></span>
+                  <span class="text-xs text-gray-500" x-show="order.shipped_at" x-text="'ส่งเมื่อ: ' + formatDate(order.shipped_at)"></span>
+                  <button @click="openOrder(order)" class="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-100">ใส่เลขพัสดุ/แก้ไข</button>
+                </div>
+              </td>
+
+              <!-- จัดการ -->
+              <td class="px-6 py-3">
+                <div class="flex flex-col gap-2">
+                  <button @click="openOrder(order)" class="bg-white border px-3 py-1 rounded hover:bg-gray-50 text-sm">ดูรายละเอียด</button>
+                  <button @click="updateOrderStatus(order, 'delivered')" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 text-sm">ทำเสร็จแล้ว</button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal รายละเอียด -->
+  <div x-show="orderModalOpen" style="display:none" class="fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/40" @click="closeOrderModal()"></div>
+    <div class="absolute right-0 top-0 h-full w-full max-w-xl bg-white shadow-xl overflow-y-auto">
+      <div class="p-5 border-b flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-bold">รายละเอียดคำสั่งซื้อ</h3>
+          <div class="text-sm text-gray-500" x-text="selectedOrder?.order_number || selectedOrder?.id"></div>
+        </div>
+        <button @click="closeOrderModal()" class="text-gray-500 hover:text-gray-700"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <div class="p-6 space-y-6">
+        <!-- ลูกค้า -->
+        <section class="space-y-2">
+          <h4 class="font-semibold">ลูกค้า</h4>
+          <div class="text-sm">
+            <div class="font-medium" x-text="selectedOrder?.customer?.name || selectedOrder?.customer_name || selectedOrder?.name || '-'"></div>
+            <div class="text-gray-600" x-text="selectedOrder?.customer?.email || selectedOrder?.email || ''"></div>
+            <div class="text-gray-600" x-text="selectedOrder?.customer?.phone || selectedOrder?.phone || ''"></div>
+          </div>
+          <h4 class="font-semibold">ที่อยู่จัดส่ง</h4>
+          <pre class="text-sm bg-gray-50 p-3 rounded whitespace-pre-wrap" x-text="formatAddress(selectedOrder)"></pre>
+          <button @click="copyToClipboard(formatAddress(selectedOrder))" class="text-xs text-blue-600 hover:underline">คัดลอกที่อยู่</button>
+        </section>
+
+        <!-- ชำระเงิน -->
+        <section class="space-y-2">
+          <h4 class="font-semibold">ชำระเงิน</h4>
+          <div class="flex items-center gap-2">
+            <span class="text-sm">สถานะ:</span>
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                  :class="{
+                    'bg-green-100 text-green-800': (selectedOrder?.payment_status || '').toLowerCase()==='paid',
+                    'bg-yellow-100 text-yellow-800': !selectedOrder?.payment_status || (selectedOrder?.payment_status || '').toLowerCase()==='pending',
+                    'bg-red-100 text-red-800': (selectedOrder?.payment_status || '').toLowerCase()==='rejected' || (selectedOrder?.payment_status || '').toLowerCase()==='unpaid'
+                  }"
+                  x-text="selectedOrder?.payment_status || 'pending'"></span>
+            <span class="ml-2 text-sm text-gray-500" x-text="'วิธี: ' + (selectedOrder?.payment_method || '-')"></span>
+          </div>
+          <div class="flex gap-2">
+            <button @click="markPaid(selectedOrder)" class="text-xs bg-green-50 text-green-700 px-2 py-1 rounded hover:bg-green-100">มาร์คจ่าย</button>
+            <button @click="markUnpaid(selectedOrder)" class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded hover:bg-gray-200">มาร์คค้าง</button>
+          </div>
+        </section>
+
+        <!-- สินค้า -->
+        <section class="space-y-2">
+          <h4 class="font-semibold">สินค้า</h4>
+          <div class="text-sm border rounded overflow-hidden">
+            <div class="grid grid-cols-6 bg-gray-50 px-3 py-2 font-medium">
+              <div class="col-span-3">ชื่อ</div><div class="text-right">จำนวน</div><div class="text-right">ราคา</div><div class="text-right">รวม</div>
             </div>
+            <template x-for="(it, idx) in (selectedOrder?.items || [])" :key="idx">
+              <div class="grid grid-cols-6 px-3 py-2 border-t">
+                <div class="col-span-3" x-text="it.name || it.product_name"></div>
+                <div class="text-right" x-text="it.quantity"></div>
+                <div class="text-right" x-text="Number(it.price || 0).toLocaleString()"></div>
+                <div class="text-right" x-text="Number(it.subtotal || (it.price||0)*it.quantity).toLocaleString()"></div>
+              </div>
+            </template>
+            <div class="grid grid-cols-6 px-3 py-2 border-t bg-gray-50">
+              <div class="col-span-5 text-right font-semibold">ยอดรวม</div>
+              <div class="text-right font-bold" x-text="(Number(selectedOrder?.total) || Number(selectedOrder?.total_amount) || 0).toLocaleString()"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- จัดส่ง -->
+        <section class="space-y-3">
+          <h4 class="font-semibold">จัดส่ง</h4>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-sm text-gray-600">ขนส่ง</label>
+              <input type="text" class="w-full border rounded px-3 py-2" placeholder="เช่น Kerry / J&T / ไปรษณีย์" x-model="carrierInput">
+            </div>
+            <div>
+              <label class="text-sm text-gray-600">เลขพัสดุ</label>
+              <input type="text" class="w-full border rounded px-3 py-2" placeholder="เลขพัสดุ" x-model="trackingInput">
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button @click="saveTrackingNumber(selectedOrder)" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">บันทึกเลขพัสดุ</button>
+            <button @click="updateOrderStatus(selectedOrder, 'shipped')" class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">มาร์คเป็น 'shipped'</button>
+          </div>
+          <div class="text-xs text-gray-500" x-show="selectedOrder?.shipped_at" x-text="'ส่งเมื่อ: ' + formatDate(selectedOrder.shipped_at)"></div>
+        </section>
+
+        <!-- ท้ายโมดัล -->
+        <div class="pt-4 border-t flex justify-between">
+          <button @click="updateOrderStatus(selectedOrder, 'cancelled')" class="text-red-600 hover:underline">ยกเลิกคำสั่งซื้อ</button>
+          <div class="flex gap-2">
+            <button @click="updateOrderStatus(selectedOrder, 'delivered')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">ทำเสร็จแล้ว (delivered)</button>
+            <button @click="closeOrderModal()" class="bg-gray-100 px-4 py-2 rounded hover:bg-gray-200">ปิด</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- /Orders Tab -->
+
+
 
             <!-- Contacts Tab -->
             <div x-show="currentTab === 'contacts' && !loading">
@@ -872,6 +1057,8 @@
       loginForm: { email: 'admin@veevee.com', password: '' },
       loginLoading: false,
       loginError: '',
+      currentTab: 'orders',
+      loading: false,
 
       // ===========================
       // 🧭 Navigation / UI State
