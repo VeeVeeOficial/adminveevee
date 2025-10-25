@@ -803,16 +803,46 @@
                             <div class="p-4">
                                 <div class="flex justify-between items-start mb-2">
                                     <h3 class="font-semibold text-gray-900" x-text="slip.order_number"></h3>
-                                    <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">รอตรวจสอบ</span>
+                                    <!-- แสดงสถานะที่ถูกต้อง -->
+                                    <span :class="{
+                                        'bg-yellow-100 text-yellow-800': !slip.status || slip.status === 'pending' || slip.verification_status === 'pending',
+                                        'bg-green-100 text-green-800': slip.status === 'approved' || slip.verification_status === 'approved',
+                                        'bg-red-100 text-red-800': slip.status === 'rejected' || slip.verification_status === 'rejected'
+                                    }" class="px-2 py-1 rounded-full text-xs">
+                                        <span x-show="!slip.status || slip.status === 'pending' || slip.verification_status === 'pending'">รอตรวจสอบ</span>
+                                        <span x-show="slip.status === 'approved' || slip.verification_status === 'approved'">✅ อนุมัติแล้ว</span>
+                                        <span x-show="slip.status === 'rejected' || slip.verification_status === 'rejected'">❌ ปฏิเสธแล้ว</span>
+                                    </span>
                                 </div>
                                 <p class="text-lg font-bold text-green-600" x-text="'฿' + slip.amount?.toLocaleString()"></p>
                                 <p class="text-sm text-gray-500" x-text="formatDate(slip.uploaded_at || slip.timestamp)"></p>
-                                <div class="mt-3 flex space-x-2">
-                                    <button @click="approvePaymentSlip(slip)" class="flex-1 bg-green-500 text-white py-2 px-3 rounded text-sm hover:bg-green-600 transition-colors">
-                                        ✅ อนุมัติ
-                                    </button>
-                                    <button @click="rejectPaymentSlip(slip)" class="flex-1 bg-red-500 text-white py-2 px-3 rounded text-sm hover:bg-red-600 transition-colors">
-                                        ❌ ปฏิเสธ
+                                
+                                <!-- แสดงปุ่มตามสถานะ -->
+                                <div class="mt-3 space-y-2">
+                                    <!-- ปุ่มสำหรับสลิปรอตรวจสอบ -->
+                                    <div x-show="!slip.status || slip.status === 'pending' || slip.verification_status === 'pending'" class="flex space-x-2">
+                                        <button @click="approvePaymentSlip(slip)" class="flex-1 bg-green-500 text-white py-2 px-3 rounded text-sm hover:bg-green-600 transition-colors">
+                                            ✅ อนุมัติ
+                                        </button>
+                                        <button @click="rejectPaymentSlip(slip)" class="flex-1 bg-red-500 text-white py-2 px-3 rounded text-sm hover:bg-red-600 transition-colors">
+                                            ❌ ปฏิเสธ
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- ข้อมูลเพิ่มเติมสำหรับสลิปที่อนุมัติ/ปฏิเสธแล้ว -->
+                                    <div x-show="slip.status === 'approved' || slip.verification_status === 'approved'" class="text-xs text-gray-600">
+                                        <p x-show="slip.approved_by">โดย: <span x-text="slip.approved_by"></span></p>
+                                        <p x-show="slip.approved_at">เมื่อ: <span x-text="formatDate(slip.approved_at)"></span></p>
+                                    </div>
+                                    
+                                    <div x-show="slip.status === 'rejected' || slip.verification_status === 'rejected'" class="text-xs text-red-600">
+                                        <p x-show="slip.rejected_by">โดย: <span x-text="slip.rejected_by"></span></p>
+                                        <p x-show="slip.rejection_reason">เหตุผล: <span x-text="slip.rejection_reason"></span></p>
+                                    </div>
+                                    
+                                    <!-- ปุ่มลบสลิป (แสดงได้ทุกสถานะ) -->
+                                    <button @click="deletePaymentSlip(slip)" class="w-full bg-gray-500 text-white py-2 px-3 rounded text-sm hover:bg-gray-600 transition-colors">
+                                        🗑️ ลบสลิป
                                     </button>
                                 </div>
                             </div>
@@ -828,7 +858,7 @@
         function adminApp() {
             return {
                 // Admin Config
-                ADMIN_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwoEN86QTpuRxDckf8mQiga9pkn-RJBM0z00nqywbPUbeeIR34XX6JPHQeVcuLoWKAeUA/exec',
+                ADMIN_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbz_4rSRFeuwY3UQ8Ql9Herfx3UXyv7yG7-A5VV2GNZFoZoHmuP8WHGzXZjCj_68MAULJA/exec',
                 SPREADSHEET_ID: '19jd3hyPBVrwvbqv28uUv47GjoPYcfVv-_1XcZH548I4',
                 SHEETS_URL: 'https://docs.google.com/spreadsheets/d/19jd3hyPBVrwvbqv28uUv47GjoPYcfVv-_1XcZH548I4/edit',
                 
@@ -1140,16 +1170,73 @@
                 },
                 async refreshPOSSales() { 
                     try {
-                        const salesRef = window.firebaseCollection(window.firebaseDb, 'pos_sales');
-                        const q = window.firebaseQuery(salesRef, window.firebaseOrderBy('timestamp', 'desc'));
-                        const querySnapshot = await window.firebaseGetDocs(q);
-                        
+                        console.log('🔄 Loading POS sales from Firebase and Google Sheets...');
                         this.posSales = [];
-                        querySnapshot.forEach((doc) => {
-                            this.posSales.push({ id: doc.id, ...doc.data() });
+                        
+                        // 1. ดึงข้อมูลจาก Firebase (POS ขายหน้าร้าน)
+                        try {
+                            if (window.firebaseCollection && window.firebaseDb) {
+                                const salesRef = window.firebaseCollection(window.firebaseDb, 'pos_sales');
+                                const q = window.firebaseQuery(salesRef, window.firebaseOrderBy('timestamp', 'desc'));
+                                const querySnapshot = await window.firebaseGetDocs(q);
+                                
+                                querySnapshot.forEach((doc) => {
+                                    this.posSales.push({ 
+                                        id: doc.id, 
+                                        ...doc.data(),
+                                        source: 'firebase' 
+                                    });
+                                });
+                                
+                                console.log('✅ Firebase POS Sales loaded:', this.posSales.length);
+                            }
+                        } catch (firebaseError) {
+                            console.warn('⚠️ Firebase load failed:', firebaseError);
+                        }
+                        
+                        // 2. ดึงข้อมูลจาก Google Sheets (ยอดขายทั้งหมดรวมหน้าบ้าน)
+                        try {
+                            if (this.ADMIN_SCRIPT_URL) {
+                                const scriptResult = await this.sendToAdminScript({
+                                    action: 'get_pos_sales',
+                                    date_from: null,
+                                    date_to: null
+                                });
+                                
+                                if (scriptResult.success && scriptResult.data) {
+                                    // เพิ่มข้อมูลจาก Google Sheets
+                                    scriptResult.data.forEach(sale => {
+                                        // ตรวจสอบว่ามีข้อมูลซ้ำจาก Firebase หรือไม่
+                                        const existingIndex = this.posSales.findIndex(s => s.sale_id === sale.sale_id);
+                                        
+                                        if (existingIndex === -1) {
+                                            // ถ้าไม่ซ้ำ ให้เพิ่มเข้าไป
+                                            this.posSales.push({
+                                                ...sale,
+                                                source: 'google_sheets'
+                                            });
+                                        }
+                                    });
+                                    
+                                    console.log('✅ Google Sheets POS Sales loaded:', scriptResult.data.length);
+                                    console.log('✅ Total POS Sales (combined):', this.posSales.length);
+                                }
+                            }
+                        } catch (scriptError) {
+                            console.warn('⚠️ Google Sheets load failed:', scriptError);
+                        }
+                        
+                        // 3. เรียงข้อมูลตามเวลาล่าสุดก่อน
+                        this.posSales.sort((a, b) => {
+                            const dateA = new Date(a.timestamp);
+                            const dateB = new Date(b.timestamp);
+                            return dateB - dateA;
                         });
                         
-                        console.log('✅ POS Sales loaded:', this.posSales.length);
+                        console.log('✅ All POS Sales loaded successfully:', this.posSales.length);
+                        console.log('📊 Firebase sales:', this.posSales.filter(s => s.source === 'firebase').length);
+                        console.log('📊 Google Sheets sales:', this.posSales.filter(s => s.source === 'google_sheets').length);
+                        
                     } catch (error) {
                         console.error('❌ Failed to load POS sales:', error);
                     }
@@ -1173,12 +1260,14 @@
                                 const slipRef = window.firebaseDoc(window.firebaseDb, 'payment_slips', slip.id);
                                 await window.firebaseUpdateDoc(slipRef, {
                                     status: 'approved',
+                                    verification_status: 'approved',
                                     approved_at: new Date().toISOString(),
                                     approved_by: this.userEmail
                                 });
                                 console.log('🔥 Slip approved in Firebase');
                             } catch (firebaseError) {
-                                console.warn('⚠️ Firebase update failed:', firebaseError);
+                                console.error('❌ Firebase update failed:', firebaseError);
+                                throw new Error('ไม่สามารถอัปเดต Firebase ได้: ' + firebaseError.message);
                             }
                         }
                         
@@ -1188,26 +1277,34 @@
                             slip_id: slip.id,
                             order_number: slip.order_number,
                             amount: slip.amount,
-                            admin_notes: 'อนุมัติผ่านระบบ Admin'
+                            admin_notes: 'อนุมัติผ่านระบบ Admin',
+                            approved_by: this.userEmail,
+                            approved_at: new Date().toISOString()
                         });
                         
                         if (adminResult.success) {
                             console.log('📧 Approval sent to admin system');
+                        } else {
+                            console.warn('⚠️ Apps Script update failed:', adminResult);
                         }
                         
                         // ✅ อัปเดต local state
                         const slipIndex = this.paymentSlips.findIndex(s => s.id === slip.id);
                         if (slipIndex !== -1) {
                             this.paymentSlips[slipIndex].status = 'approved';
+                            this.paymentSlips[slipIndex].verification_status = 'approved';
                             this.paymentSlips[slipIndex].approved_at = new Date().toISOString();
                             this.paymentSlips[slipIndex].approved_by = this.userEmail;
                         }
+                        
+                        // ✅ รีเฟรชข้อมูล
+                        await this.refreshPaymentSlips();
                         
                         alert('✅ อนุมัติสลิปเรียบร้อยแล้ว');
                         
                     } catch (error) {
                         console.error('❌ Failed to approve slip:', error);
-                        alert('เกิดข้อผิดพลาดในการอนุมัติ: ' + error.message);
+                        alert('⚠️ เกิดข้อผิดพลาดในการอนุมัติ: ' + error.message);
                     }
                 },
 
@@ -1225,13 +1322,15 @@
                                 const slipRef = window.firebaseDoc(window.firebaseDb, 'payment_slips', slip.id);
                                 await window.firebaseUpdateDoc(slipRef, {
                                     status: 'rejected',
+                                    verification_status: 'rejected',
                                     rejected_at: new Date().toISOString(),
                                     rejected_by: this.userEmail,
                                     rejection_reason: reason
                                 });
                                 console.log('🔥 Slip rejected in Firebase');
                             } catch (firebaseError) {
-                                console.warn('⚠️ Firebase update failed:', firebaseError);
+                                console.error('❌ Firebase update failed:', firebaseError);
+                                throw new Error('ไม่สามารถอัปเดต Firebase ได้: ' + firebaseError.message);
                             }
                         }
                         
@@ -1241,27 +1340,95 @@
                             slip_id: slip.id,
                             order_number: slip.order_number,
                             amount: slip.amount,
-                            rejection_reason: reason
+                            rejection_reason: reason,
+                            rejected_by: this.userEmail,
+                            rejected_at: new Date().toISOString()
                         });
                         
                         if (adminResult.success) {
                             console.log('📧 Rejection sent to admin system');
+                        } else {
+                            console.warn('⚠️ Apps Script update failed:', adminResult);
                         }
                         
                         // ✅ อัปเดต local state
                         const slipIndex = this.paymentSlips.findIndex(s => s.id === slip.id);
                         if (slipIndex !== -1) {
                             this.paymentSlips[slipIndex].status = 'rejected';
+                            this.paymentSlips[slipIndex].verification_status = 'rejected';
                             this.paymentSlips[slipIndex].rejected_at = new Date().toISOString();
                             this.paymentSlips[slipIndex].rejected_by = this.userEmail;
                             this.paymentSlips[slipIndex].rejection_reason = reason;
                         }
                         
-                        alert('❌ ปฏิเสธสลิปเรียบร้อยแล้ว');
+                        // ✅ รีเฟรชข้อมูล
+                        await this.refreshPaymentSlips();
+                        
+                        alert('✅ ปฏิเสธสลิปเรียบร้อยแล้ว');
                         
                     } catch (error) {
                         console.error('❌ Failed to reject slip:', error);
-                        alert('เกิดข้อผิดพลาดในการปฏิเสธ: ' + error.message);
+                        alert('⚠️ เกิดข้อผิดพลาดในการปฏิเสธ: ' + error.message);
+                    }
+                },
+
+                async deletePaymentSlip(slip) {
+                    try {
+                        console.log('🗑️ Deleting payment slip:', slip.id);
+                        
+                        const confirmation = confirm(
+                            `ลบสลิปการโอนเงิน?\n\n` +
+                            `รหัสคำสั่งซื้อ: ${slip.order_number}\n` +
+                            `จำนวน: ฿${slip.amount?.toLocaleString()}\n` +
+                            `สถานะ: ${slip.status || slip.verification_status || 'รอตรวจสอบ'}\n\n` +
+                            `⚠️ การลบจะไม่สามารถกู้คืนได้`
+                        );
+                        
+                        if (!confirmation) return;
+                        
+                        // ✅ ลบจาก Firebase
+                        if (window.firebaseDoc && window.firebaseDeleteDoc && window.firebaseDb) {
+                            try {
+                                const slipRef = window.firebaseDoc(window.firebaseDb, 'payment_slips', slip.id);
+                                await window.firebaseDeleteDoc(slipRef);
+                                console.log('🔥 Slip deleted from Firebase');
+                            } catch (firebaseError) {
+                                console.error('❌ Firebase delete failed:', firebaseError);
+                                throw new Error('ไม่สามารถลบจาก Firebase ได้: ' + firebaseError.message);
+                            }
+                        }
+                        
+                        // ✅ ส่งไป Apps Script
+                        const adminResult = await this.sendToAdminScript({
+                            action: 'delete_slip',
+                            slip_id: slip.id,
+                            order_number: slip.order_number,
+                            amount: slip.amount,
+                            deleted_by: this.userEmail,
+                            deleted_at: new Date().toISOString(),
+                            reason: 'ลบโดย Admin'
+                        });
+                        
+                        if (adminResult.success) {
+                            console.log('📧 Delete notification sent to admin system');
+                        } else {
+                            console.warn('⚠️ Apps Script notification failed:', adminResult);
+                        }
+                        
+                        // ✅ ลบจาก local state
+                        const slipIndex = this.paymentSlips.findIndex(s => s.id === slip.id);
+                        if (slipIndex !== -1) {
+                            this.paymentSlips.splice(slipIndex, 1);
+                        }
+                        
+                        // ✅ รีเฟรชข้อมูล
+                        await this.refreshPaymentSlips();
+                        
+                        alert('✅ ลบสลิปเรียบร้อยแล้ว');
+                        
+                    } catch (error) {
+                        console.error('❌ Failed to delete slip:', error);
+                        alert('⚠️ เกิดข้อผิดพลาดในการลบสลิป: ' + error.message);
                     }
                 },
 
@@ -1344,7 +1511,7 @@
                 // 📊 STOCK MANAGEMENT FUNCTIONS
                 // ================================
 
-                adjustStock(product) {
+                async adjustStock(product) {
                     const currentStock = product.stock;
                     const newStock = prompt(
                         `ปรับสต็อก: ${product.name}\n` +
@@ -1367,29 +1534,69 @@
                     
                     if (!reason) return;
                     
-                    product.stock = stockNumber;
-                    product.last_stock_update = new Date().toISOString();
-                    
-                    // บันทึก log
-                    const logEntry = {
-                        product_id: product.id,
-                        product_name: product.name,
-                        old_stock: currentStock,
-                        new_stock: stockNumber,
-                        adjustment: adjustment,
-                        reason: reason,
-                        admin: this.userEmail,
-                        timestamp: new Date().toISOString()
-                    };
-                    
-                    console.log('📦 Stock adjusted:', logEntry);
-                    
-                    // แจ้งเตือนสต็อกต่ำ
-                    if (stockNumber <= product.min_stock && stockNumber > 0) {
-                        alert(`⚠️ สต็อกต่ำ!\n${product.name} เหลือ ${stockNumber} ${product.unit} (ขั้นต่ำ ${product.min_stock} ${product.unit})`);
+                    try {
+                        // ✅ 1. บันทึกลง Firebase
+                        if (window.firebaseDoc && window.firebaseUpdateDoc && window.firebaseDb) {
+                            try {
+                                const productRef = window.firebaseDoc(window.firebaseDb, 'products', product.id);
+                                await window.firebaseUpdateDoc(productRef, {
+                                    stock: stockNumber,
+                                    last_stock_update: new Date().toISOString(),
+                                    updated_at: new Date().toISOString()
+                                });
+                                console.log('🔥 Stock updated in Firebase');
+                            } catch (firebaseError) {
+                                console.warn('⚠️ Firebase update failed:', firebaseError);
+                            }
+                        }
+                        
+                        // ✅ 2. ส่งไป Apps Script
+                        const scriptResult = await this.sendToAdminScript({
+                            action: 'update_stock',
+                            product_id: product.id,
+                            product_sku: product.sku,
+                            product_name: product.name,
+                            old_stock: currentStock,
+                            new_stock: stockNumber,
+                            adjustment: adjustment,
+                            reason: reason,
+                            admin: this.userEmail,
+                            timestamp: new Date().toISOString()
+                        });
+                        
+                        if (scriptResult.success) {
+                            console.log('📧 Stock update sent to admin system');
+                        }
+                        
+                        // ✅ 3. อัปเดต local state
+                        product.stock = stockNumber;
+                        product.last_stock_update = new Date().toISOString();
+                        
+                        // บันทึก log
+                        const logEntry = {
+                            product_id: product.id,
+                            product_name: product.name,
+                            old_stock: currentStock,
+                            new_stock: stockNumber,
+                            adjustment: adjustment,
+                            reason: reason,
+                            admin: this.userEmail,
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        console.log('📦 Stock adjusted:', logEntry);
+                        
+                        // แจ้งเตือนสต็อกต่ำ
+                        if (stockNumber <= product.min_stock && stockNumber > 0) {
+                            alert(`⚠️ สต็อกต่ำ!\n${product.name} เหลือ ${stockNumber} ${product.unit} (ขั้นต่ำ ${product.min_stock} ${product.unit})`);
+                        } else {
+                            alert('✅ ปรับสต็อกเรียบร้อยแล้ว');
+                        }
+                        
+                    } catch (error) {
+                        console.error('❌ Failed to adjust stock:', error);
+                        alert('⚠️ เกิดข้อผิดพลาดในการปรับสต็อก: ' + error.message);
                     }
-                    
-                    alert('ปรับสต็อกเรียบร้อยแล้ว');
                 },
 
                 bulkStockAdjustment() {
